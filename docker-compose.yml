@@ -1,0 +1,17 @@
+services:
+  mbti-app:
+    build: .
+    container_name: mbti
+    restart: always
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      - GIN_MODE=release
+      - TZ=Asia/Jakarta
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true

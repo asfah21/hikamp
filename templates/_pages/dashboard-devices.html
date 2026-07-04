@@ -1,0 +1,61 @@
+{{define "content"}}
+<div class="page-header">
+    <div>
+        <a href="/admin/devices/create" class="btn btn-primary" hx-get="/admin/devices/create" hx-target="#modal-container" hx-trigger="click">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Device
+        </a>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>IP Address</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Firmware</th>
+                <th>Last Sync</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Data}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td>{{.IPAddress}}:{{.Port}}</td>
+                <td>{{.Location}}</td>
+                <td>
+                    <span class="badge {{if eq .Status "online"}}badge-success{{else}}badge-error{{end}}">
+                        {{.Status}}
+                    </span>
+                </td>
+                <td>{{.Firmware}}</td>
+                <td>{{.LastSync}}</td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-ghost" hx-get="/admin/devices/edit/{{.ID}}" hx-target="#modal-container" hx-trigger="click" title="Edit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" hx-get="/admin/devices/test/{{.ID}}" hx-target="#test-result-{{.ID}}" hx-trigger="click" title="Test Connection">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" hx-delete="/admin/devices/delete/{{.ID}}" hx-confirm="Are you sure?" hx-trigger="click" title="Delete" style="color: var(--error);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                    <div id="test-result-{{.ID}}" class="mt-1"></div>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No devices registered yet. <a href="/admin/devices/create" hx-get="/admin/devices/create" hx-target="#modal-container">Add your first device</a></td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modal Container -->
+<div id="modal-container"></div>
+{{end}}

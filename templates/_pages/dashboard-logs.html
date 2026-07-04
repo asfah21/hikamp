@@ -1,0 +1,32 @@
+{{define "content"}}
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Device</th>
+                <th>Audio</th>
+                <th>Result</th>
+                <th>Duration</th>
+                <th>Status</th>
+                <th>Error</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Data}}
+            <tr>
+                <td>{{.Time}}</td>
+                <td>{{.DeviceName}}</td>
+                <td>{{.AudioName}}</td>
+                <td><span class="badge {{if eq .Result "success"}}badge-success{{else}}badge-error{{end}}">{{.Result}}</span></td>
+                <td>{{.Duration}}s</td>
+                <td>{{.Status}}</td>
+                <td>{{if .ErrorMessage}}<span class="badge badge-error">{{.ErrorMessage}}</span>{{else}}-{{end}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No broadcast logs yet.</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

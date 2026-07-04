@@ -1,0 +1,38 @@
+{{define "content"}}
+<div class="card" style="max-width: 500px;">
+    <div class="card-body">
+        <h3 class="card-title">Manual Broadcast</h3>
+        <p style="color: var(--inkMuted); margin-bottom: 1.5rem;">Select a device and audio file to broadcast immediately.</p>
+        <form hx-post="/admin/broadcast-now" hx-target="#main-content" hx-swap="innerHTML">
+            <div class="form-group">
+                <label class="form-label">Device</label>
+                <select name="device_id" class="input-field" required>
+                    <option value="">Select Device</option>
+                    {{range .Data.Devices}}
+                    <option value="{{.ID}}">{{.Name}} ({{.IPAddress}})</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Audio</label>
+                <select name="audio_id" class="input-field" required>
+                    <option value="">Select Audio</option>
+                    {{range .Data.Audio}}
+                    <option value="{{.ID}}">{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Volume (0-100)</label>
+                <input type="number" name="volume" class="input-field" min="0" max="100" value="50">
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" style="background: var(--error); border-color: var(--error);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Broadcast Now
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

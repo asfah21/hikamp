@@ -1,0 +1,30 @@
+{{define "content"}}
+<div class="modal-overlay" x-data>
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h3>Upload Audio</h3>
+            <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+        </div>
+        <form hx-post="/admin/audio/upload" hx-target="#main-content" hx-swap="innerHTML" enctype="multipart/form-data">
+            <div class="form-group">
+                <label class="form-label">Audio File</label>
+                <input type="file" name="audio_file" class="input-field" accept="audio/*" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category" class="input-field">
+                    <option value="Prayer">Prayer</option>
+                    <option value="Attendance">Attendance</option>
+                    <option value="Announcement">Announcement</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Custom" selected>Custom</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}

@@ -1,0 +1,46 @@
+{{define "content"}}
+{{$location := .Data.Location}}
+<div class="card" style="max-width: 600px;">
+    <div class="card-body">
+        <h3 class="card-title">Prayer Location Settings</h3>
+        <form hx-post="/admin/prayer/save" hx-target="#main-content" hx-swap="innerHTML">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Latitude</label>
+                    <input type="number" step="any" name="latitude" class="input-field" value="{{if $location}}{{$location.Latitude}}{{else}}-6.2088{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Longitude</label>
+                    <input type="number" step="any" name="longitude" class="input-field" value="{{if $location}}{{$location.Longitude}}{{else}}106.8456{{end}}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <select name="timezone" class="input-field">
+                    <option value="Asia/Jakarta" {{if eq $location.Timezone "Asia/Jakarta"}}selected{{end}}>Asia/Jakarta (WIB)</option>
+                    <option value="Asia/Makassar" {{if eq $location.Timezone "Asia/Makassar"}}selected{{end}}>Asia/Makassar (WITA)</option>
+                    <option value="Asia/Jayapura" {{if eq $location.Timezone "Asia/Jayapura"}}selected{{end}}>Asia/Jayapura (WIT)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Calculation Method</label>
+                <select name="method" class="input-field">
+                    <option value="1" {{if eq $location.Method 1}}selected{{end}}>University of Islamic Sciences, Karachi</option>
+                    <option value="2" {{if eq $location.Method 2}}selected{{end}}>Islamic Society of North America (ISNA)</option>
+                    <option value="3" {{if eq $location.Method 3}}selected{{end}}>Muslim World League (MWL)</option>
+                    <option value="4" {{if eq $location.Method 4}}selected{{end}}>Umm Al-Qura University, Makkah</option>
+                    <option value="5" {{if eq $location.Method 5}}selected{{end}}>Egyptian General Authority of Survey</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Save Location</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="section-heading-left" style="margin-top: 2rem;">
+    <h2>Prayer Times</h2>
+    <p>Prayer times will be generated automatically after setting the location.</p>
+</div>
+{{end}}

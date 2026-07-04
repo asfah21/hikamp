@@ -1,0 +1,59 @@
+{{define "content"}}
+<div class="page-header">
+    <div>
+        <a href="/admin/schedules/create" class="btn btn-primary" hx-get="/admin/schedules/create" hx-target="#modal-container" hx-trigger="click">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Schedule
+        </a>
+    </div>
+</div>
+
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Begin Time</th>
+                <th>End Time</th>
+                <th>Volume</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Data}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td><span class="badge badge-neutral">{{.ScheduleType}}</span></td>
+                <td>{{.BeginTime}}</td>
+                <td>{{.EndTime}}</td>
+                <td>{{.Volume}}</td>
+                <td>
+                    <span class="badge {{if .Enabled}}badge-success{{else}}badge-error{{end}}">
+                        {{if .Enabled}}Enabled{{else}}Disabled{{end}}
+                    </span>
+                </td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn btn-sm btn-ghost" hx-get="/admin/schedules/edit/{{.ID}}" hx-target="#modal-container" hx-trigger="click" title="Edit">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" hx-post="/admin/schedules/sync/{{.ID}}" hx-trigger="click" title="Sync to Device">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                        </button>
+                        <button class="btn btn-sm btn-ghost" hx-delete="/admin/schedules/delete/{{.ID}}" hx-confirm="Delete this schedule?" hx-trigger="click" title="Delete" style="color: var(--error);">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No schedules yet. <a href="/admin/schedules/create" hx-get="/admin/schedules/create" hx-target="#modal-container">Create your first schedule</a></td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div id="modal-container"></div>
+{{end}}
