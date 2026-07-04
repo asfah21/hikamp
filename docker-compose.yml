@@ -1,14 +1,14 @@
 services:
-  mbti-app:
+  hikamp:
     build: .
     container_name: hikamp
     restart: always
     ports:
       - "10.10.11.5:8081:8080"
+    env_file:
+      - .env
     environment:
-      - GIN_MODE=release
       - TZ=Asia/Jakarta
-      - DATABASE_URL=${DATABASE_URL}
     networks:
       - app-network
 
