@@ -1,10 +1,10 @@
 services:
   mbti-app:
     build: .
-    container_name: mbti
+    container_name: hikamp
     restart: always
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8080"
     environment:
       - GIN_MODE=release
       - TZ=Asia/Jakarta
