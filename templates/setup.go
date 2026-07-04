@@ -96,25 +96,62 @@ func Init() {
 	log.Printf("Loaded %d templates", len(store.templates))
 }
 
-// Render renders a template
+// Render renders a template by combining layout + page
 func Render(w http.ResponseWriter, layout, page string, data interface{}) {
-	// Try to find the template by layout+page combination
-	templateKey := findTemplateKey(layout, page)
-	if templateKey == "" {
-		log.Printf("Template not found for layout=%s page=%s", layout, page)
-		http.Error(w, "Template not found", http.StatusInternalServerError)
+	// Find layout template
+	layoutKey := filepath.Join("templates", "layout-"+layout+".html")
+	if _, ok := store.templates[layoutKey]; !ok {
+		log.Printf("Layout template not found: %s", layoutKey)
+		http.Error(w, "Layout template not found", http.StatusInternalServerError)
 		return
 	}
 
-	tmpl, ok := store.templates[templateKey]
-	if !ok {
-		log.Printf("Template key %s not found in store", templateKey)
+	// Find page template
+	pageKey := findTemplateKey(layout, page)
+	if pageKey == "" {
+		log.Printf("Page template not found for layout=%s page=%s", layout, page)
+		http.Error(w, "Page template not found", http.StatusInternalServerError)
 		return
 	}
 
-	err := tmpl.Execute(w, data)
+	if _, ok := store.templates[pageKey]; !ok {
+		log.Printf("Page template key %s not found in store", pageKey)
+		return
+	}
+
+	// Merge layout + page into one template
+	merged := template.New("merged").Funcs(store.funcMap)
+
+	// Parse layout content directly
+	layoutContent, err := os.ReadFile(layoutKey)
+	if err != nil {
+		log.Printf("Failed to read layout file: %v", err)
+		http.Error(w, "Failed to read layout", http.StatusInternalServerError)
+		return
+	}
+
+	// Parse page content directly
+	pageContent, err := os.ReadFile(pageKey)
+	if err != nil {
+		log.Printf("Failed to read page file: %v", err)
+		http.Error(w, "Failed to read page", http.StatusInternalServerError)
+		return
+	}
+
+	// Combine layout + page content
+	combined := string(layoutContent) + "\n" + string(pageContent)
+
+	merged, err = merged.Parse(combined)
+	if err != nil {
+		log.Printf("Template parse error: %v", err)
+		http.Error(w, "Template parse error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	err = merged.Execute(w, data)
 	if err != nil {
 		log.Printf("Template execution error: %v", err)
+		http.Error(w, "Template execution error: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
