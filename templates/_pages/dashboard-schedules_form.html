@@ -6,59 +6,61 @@
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML">
-            <div class="form-group">
-                <label class="form-label">Schedule Name</label>
-                <input type="text" name="name" class="input-field" value="{{if .Data.Schedule}}{{.Data.Schedule.Name}}{{end}}" required>
-            </div>
-            <div class="form-row">
+            <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">Audio</label>
-                    <select name="audio_id" class="input-field" required>
-                        <option value="">Select Audio</option>
-                        {{range .Data.Audio}}
-                        <option value="{{.ID}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.AudioID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
-                        {{end}}
+                    <label class="form-label">Schedule Name</label>
+                    <input type="text" name="name" class="input-field" value="{{if .Data.Schedule}}{{.Data.Schedule.Name}}{{end}}" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Audio</label>
+                        <select name="audio_id" class="input-field" required>
+                            <option value="">Select Audio</option>
+                            {{range .Data.Audio}}
+                            <option value="{{.ID}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.AudioID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Device</label>
+                        <select name="device_id" class="input-field" required>
+                            <option value="">Select Device</option>
+                            {{range .Data.Devices}}
+                            <option value="{{.ID}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.DeviceID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
+                            {{end}}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Schedule Type</label>
+                    <select name="schedule_type" class="input-field" x-on:change="type = $event.target.value">
+                        <option value="daily" {{if eq .Data.Schedule.ScheduleType "daily"}}selected{{end}}>Daily</option>
+                        <option value="weekly" {{if eq .Data.Schedule.ScheduleType "weekly"}}selected{{end}}>Weekly</option>
+                        <option value="specific_date" {{if eq .Data.Schedule.ScheduleType "specific_date"}}selected{{end}}>Specific Date</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Device</label>
-                    <select name="device_id" class="input-field" required>
-                        <option value="">Select Device</option>
-                        {{range .Data.Devices}}
-                        <option value="{{.ID}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.DeviceID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
-                        {{end}}
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Schedule Type</label>
-                <select name="schedule_type" class="input-field" x-on:change="type = $event.target.value">
-                    <option value="daily" {{if eq .Data.Schedule.ScheduleType "daily"}}selected{{end}}>Daily</option>
-                    <option value="weekly" {{if eq .Data.Schedule.ScheduleType "weekly"}}selected{{end}}>Weekly</option>
-                    <option value="specific_date" {{if eq .Data.Schedule.ScheduleType "specific_date"}}selected{{end}}>Specific Date</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Begin Time</label>
-                    <input type="text" name="begin_time" class="input-field" placeholder="12:02:00+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.BeginTime}}{{end}}" required>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Begin Time</label>
+                        <input type="text" name="begin_time" class="input-field" placeholder="12:02:00+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.BeginTime}}{{end}}" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Time</label>
+                        <input type="text" name="end_time" class="input-field" placeholder="12:05:51+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.EndTime}}{{end}}" required>
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">End Time</label>
-                    <input type="text" name="end_time" class="input-field" placeholder="12:05:51+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.EndTime}}{{end}}" required>
+                    <label class="form-label">Volume (0-100)</label>
+                    <input type="number" name="volume" class="input-field" min="0" max="100" value="{{if .Data.Schedule}}{{.Data.Schedule.Volume}}{{else}}50{{end}}">
+                </div>
+                <div class="form-group">
+                    <label class="form-checkbox">
+                        <input type="checkbox" name="enabled" {{if or (not .Data.Schedule) (.Data.Schedule.Enabled)}}checked{{end}}>
+                        <span>Enabled</span>
+                    </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Volume (0-100)</label>
-                <input type="number" name="volume" class="input-field" min="0" max="100" value="{{if .Data.Schedule}}{{.Data.Schedule.Volume}}{{else}}50{{end}}">
-            </div>
-            <div class="form-group">
-                <label class="form-checkbox">
-                    <input type="checkbox" name="enabled" {{if or (not .Data.Schedule) (.Data.Schedule.Enabled)}}checked{{end}}>
-                    <span>Enabled</span>
-                </label>
-            </div>
-            <div class="form-actions">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
                 <button type="submit" class="btn btn-primary">{{if .Data.Schedule}}Update{{else}}Create{{end}}</button>
             </div>

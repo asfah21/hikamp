@@ -1,8 +1,10 @@
 {{define "content"}}
-<div class="card" style="max-width: 500px;">
-    <div class="card-body">
-        <h3 class="card-title">Manual Broadcast</h3>
-        <p style="color: var(--inkMuted); margin-bottom: 1.5rem;">Select a device and audio file to broadcast immediately.</p>
+<div class="dashboard-panel" style="max-width: 500px;">
+    <div class="dashboard-panel-header">
+        <h3>Manual Broadcast</h3>
+        <p>Select a device and audio file to broadcast immediately.</p>
+    </div>
+    <div class="dashboard-panel-body">
         <form hx-post="/admin/broadcast-now" hx-target="#main-content" hx-swap="innerHTML">
             <div class="form-group">
                 <label class="form-label">Device</label>
@@ -26,7 +28,7 @@
                 <label class="form-label">Volume (0-100)</label>
                 <input type="number" name="volume" class="input-field" min="0" max="100" value="50">
             </div>
-            <div class="form-actions">
+            <div class="dashboard-panel-footer">
                 <button type="submit" class="btn btn-primary" style="background: var(--error); border-color: var(--error);">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                     Broadcast Now

@@ -6,41 +6,43 @@
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <form hx-post="{{if .Data}}/admin/devices/edit/{{.Data.ID}}{{else}}/admin/devices/create{{end}}" hx-target="#main-content" hx-swap="innerHTML">
-            <div class="form-group">
-                <label class="form-label">Device Name</label>
-                <input type="text" name="name" class="input-field" value="{{if .Data}}{{.Data.Name}}{{end}}" required>
-            </div>
-            <div class="form-row">
+            <div class="modal-body">
                 <div class="form-group">
-                    <label class="form-label">IP Address</label>
-                    <input type="text" name="ip_address" class="input-field" value="{{if .Data}}{{.Data.IPAddress}}{{end}}" required>
+                    <label class="form-label">Device Name</label>
+                    <input type="text" name="name" class="input-field" value="{{if .Data}}{{.Data.Name}}{{end}}" required>
                 </div>
-                <div class="form-group" style="max-width: 120px;">
-                    <label class="form-label">Port</label>
-                    <input type="number" name="port" class="input-field" value="{{if .Data}}{{.Data.Port}}{{else}}80{{end}}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">IP Address</label>
+                        <input type="text" name="ip_address" class="input-field" value="{{if .Data}}{{.Data.IPAddress}}{{end}}" required>
+                    </div>
+                    <div class="form-group" style="max-width: 120px;">
+                        <label class="form-label">Port</label>
+                        <input type="number" name="port" class="input-field" value="{{if .Data}}{{.Data.Port}}{{else}}80{{end}}">
+                    </div>
                 </div>
-            </div>
-            <div class="form-row">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" name="username" class="input-field" value="{{if .Data}}{{.Data.Username}}{{end}}">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" name="password" class="input-field" value="{{if .Data}}{{.Data.Password}}{{end}}">
+                    </div>
+                </div>
                 <div class="form-group">
-                    <label class="form-label">Username</label>
-                    <input type="text" name="username" class="input-field" value="{{if .Data}}{{.Data.Username}}{{end}}">
+                    <label class="form-label">Location</label>
+                    <input type="text" name="location" class="input-field" value="{{if .Data}}{{.Data.Location}}{{end}}">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="input-field" value="{{if .Data}}{{.Data.Password}}{{end}}">
+                    <label class="form-checkbox">
+                        <input type="checkbox" name="enabled" {{if or (not .Data) (.Data.Enabled)}}checked{{end}}>
+                        <span>Enabled</span>
+                    </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Location</label>
-                <input type="text" name="location" class="input-field" value="{{if .Data}}{{.Data.Location}}{{end}}">
-            </div>
-            <div class="form-group">
-                <label class="form-checkbox">
-                    <input type="checkbox" name="enabled" {{if or (not .Data) (.Data.Enabled)}}checked{{end}}>
-                    <span>Enabled</span>
-                </label>
-            </div>
-            <div class="form-actions">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
                 <button type="submit" class="btn btn-primary">{{if .Data}}Update{{else}}Create{{end}}</button>
             </div>
