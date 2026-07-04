@@ -15,12 +15,13 @@ func RenderDashboard(w http.ResponseWriter, r *http.Request, page string, data i
 		user = &models.User{Name: "Admin", Username: "admin"}
 	}
 
-	// Get settings for sidebar
-	settings, _ := services.GetAllSettings()
+	// Get settings for sidebar (graceful fallback)
 	companyName := "Hikvision Broadcast"
-	for _, s := range settings {
-		if s.Key == "company_name" && s.Value != "" {
-			companyName = s.Value
+	if settings, err := services.GetAllSettings(); err == nil {
+		for _, s := range settings {
+			if s.Key == "company_name" && s.Value != "" {
+				companyName = s.Value
+			}
 		}
 	}
 

@@ -20,49 +20,40 @@ type DashboardData struct {
 func GetDashboardData() (*DashboardData, error) {
 	data := &DashboardData{}
 
-	// Device stats
-	devices, err := repositories.GetAllDevices()
-	if err != nil {
-		return nil, err
-	}
-	data.TotalDevices = len(devices)
-	for _, d := range devices {
-		if d.Status == "online" {
-			data.OnlineDevices++
-		} else {
-			data.OfflineDevices++
+	// Device stats (graceful fallback)
+	if devices, err := repositories.GetAllDevices(); err == nil {
+		data.TotalDevices = len(devices)
+		for _, d := range devices {
+			if d.Status == "online" {
+				data.OnlineDevices++
+			} else {
+				data.OfflineDevices++
+			}
 		}
 	}
 
-	// Audio stats
-	audioFiles, err := repositories.GetAllAudioFiles()
-	if err != nil {
-		return nil, err
+	// Audio stats (graceful fallback)
+	if audioFiles, err := repositories.GetAllAudioFiles(); err == nil {
+		data.TotalAudioFiles = len(audioFiles)
 	}
-	data.TotalAudioFiles = len(audioFiles)
 
-	// Today's broadcast count
-	logs, err := repositories.GetTodayLogs()
-	if err != nil {
-		return nil, err
+	// Today's broadcast count (graceful fallback)
+	if logs, err := repositories.GetTodayLogs(); err == nil {
+		data.TodayBroadcastCount = len(logs)
+		// Recent logs (last 5)
+		if len(logs) > 5 {
+			logs = logs[:5]
+		}
+		data.RecentLogs = logs
 	}
-	data.TodayBroadcastCount = len(logs)
 
-	// Recent logs (last 5)
-	if len(logs) > 5 {
-		logs = logs[:5]
-	}
-	data.RecentLogs = logs
-
-	// Next schedule
-	schedules, err := repositories.GetAllSchedules()
-	if err != nil {
-		return nil, err
-	}
-	for _, s := range schedules {
-		if s.Enabled {
-			data.NextSchedule = &s
-			break
+	// Next schedule (graceful fallback)
+	if schedules, err := repositories.GetAllSchedules(); err == nil {
+		for _, s := range schedules {
+			if s.Enabled {
+				data.NextSchedule = &s
+				break
+			}
 		}
 	}
 
