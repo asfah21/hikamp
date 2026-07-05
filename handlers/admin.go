@@ -631,7 +631,28 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Log the broadcast
+		// Send broadcast to the Hikvision device
+		err = services.BroadcastToDevice(device, audioID, volume)
+		if err != nil {
+			// Log the failed broadcast
+			log := &models.BroadcastLog{
+				Time:       r.FormValue("time"),
+				DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
+				DeviceName: device.Name,
+				AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
+				AudioName:  audio.Name,
+				Result:     "failed",
+				Status:     "error",
+				Duration:   volume,
+			}
+			services.CreateLog(log)
+
+			w.Header().Set("HX-Trigger", `{"toast":"Broadcast failed: `+err.Error()+`"}`)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Log the successful broadcast
 		log := &models.BroadcastLog{
 			Time:       r.FormValue("time"),
 			DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},

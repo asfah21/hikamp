@@ -141,11 +141,51 @@ func (c *Client) DeleteAudio(audioID int) error {
 	return fmt.Errorf("DeleteAudio not yet implemented - inspect Hikvision Web UI Network tab first")
 }
 
-// BroadcastNow broadcasts audio immediately
+// BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
+// This creates a temporary schedule that starts now and ends in 5 minutes.
+// For DS-QAE1A80G1-VB, this is the most reliable approach since the real-time
+// broadcast endpoint is not yet verified.
 func (c *Client) BroadcastNow(audioID int, volume int) error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("BroadcastNow not yet implemented - inspect Hikvision Web UI Network tab first")
+	now := time.Now()
+	beginTime := now.Format("15:04:05-07:00")
+	endTime := now.Add(5 * time.Minute).Format("15:04:05-07:00")
+	dateStr := now.Format("2006-01-02")
+
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
+			{
+				"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
+				"enabled":        true,
+				"planSchemeName": "Broadcast Now",
+				"audioOutID":     []int{1},
+				"dailyScheduleInfo": map[string]interface{}{
+					"startTime": dateStr,
+					"stopTime":  dateStr,
+					"dailyScheduleList": []map[string]interface{}{
+						{
+							"beginTime": beginTime,
+							"endTime":   endTime,
+							"playMode":  "order",
+							"operation": map[string]interface{}{
+								"audioSource":   "customAudio",
+								"customAudioID": []int{audioID},
+								"audioLevel":    5,
+								"audioVolume":   volume,
+							},
+						},
+					},
+				},
+			},
+		},
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
+	}
+
+	return c.CreateSchedule(payload)
 }
 
 // StopBroadcast stops the current broadcast

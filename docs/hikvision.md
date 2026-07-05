@@ -235,6 +235,23 @@ TestConnection()
 
 ---
 
+## Broadcast Now (Immediate Broadcast)
+
+BroadcastNow is implemented using the verified AddPlanScheme endpoint.
+
+It creates a temporary schedule that starts immediately and ends in 5 minutes.
+
+This approach is used because the dedicated real-time broadcast endpoint is not yet verified.
+
+Implementation details:
+
+- Method: POST (via CreateSchedule)
+- Endpoint: /ISAPI/VideoIntercom/broadcast/AddPlanScheme?format=json
+- Payload: Same as AddPlanScheme but with beginTime = now, endTime = now + 5 minutes
+- planSchemeID: Uses timestamp suffix (broadcast_now_<unix>) to avoid conflicts
+
+---
+
 ## Unknown Endpoints
 
 The following endpoints are NOT verified.
@@ -248,8 +265,6 @@ DeletePlanScheme
 UploadAudio
 
 SearchAudio
-
-BroadcastNow
 
 StopBroadcast
 

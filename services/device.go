@@ -59,3 +59,9 @@ func SyncDeviceInfo(id int) error {
 	firmware := info["firmwareVersion"]
 	return repositories.UpdateDeviceStatus(id, "online", firmware)
 }
+
+// BroadcastToDevice sends a broadcast command to a Hikvision device
+func BroadcastToDevice(device *models.Device, audioID int, volume int) error {
+	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+	return client.BroadcastNow(audioID, volume)
+}

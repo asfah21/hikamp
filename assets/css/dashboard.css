@@ -962,3 +962,54 @@ select.input-field {
     flex-wrap: wrap;
   }
 }
+
+/* ============================================================
+   MAP PICKER
+   ============================================================ */
+.map-picker-container {
+  margin-top: 4px;
+}
+
+.map-picker {
+  width: 100%;
+  z-index: 1;
+}
+
+.map-coords-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--inkMuted);
+}
+
+.map-coords-hint svg {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+/* Fix Leaflet marker icon path */
+.leaflet-default-icon-path {
+  background-image: url(https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png);
+}
+
+/* Dark mode map adjustments */
+[data-theme="dark"] .leaflet-layer {
+  filter: brightness(0.85) invert(0.1) hue-rotate(180deg);
+}
+
+[data-theme="dark"] .leaflet-control-zoom a {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--bordLight);
+}
+
+[data-theme="dark"] .leaflet-control-attribution {
+  background: rgba(0,0,0,0.6) !important;
+  color: #999;
+}
+
+[data-theme="dark"] .leaflet-control-attribution a {
+  color: #aaa;
+}

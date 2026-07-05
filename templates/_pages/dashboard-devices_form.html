@@ -1,6 +1,6 @@
 {{define "content"}}
 <div class="modal-overlay" x-data>
-    <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
             <h3>{{if .Data}}Edit Device{{else}}Add Device{{end}}</h3>
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
@@ -33,8 +33,21 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Location</label>
-                    <input type="text" name="location" class="input-field" value="{{if .Data}}{{.Data.Location}}{{end}}">
+                    <input type="text" name="location" id="device-location" class="input-field" value="{{if .Data}}{{.Data.Location}}{{end}}" placeholder="e.g. Jakarta, Indonesia">
                 </div>
+
+                <!-- Map Picker for Location -->
+                <div class="form-group">
+                    <label class="form-label">Pick Location on Map</label>
+                    <div class="map-picker-container">
+                        <div id="device-map" class="map-picker" style="height: 260px; border-radius: 8px; border: 1px solid var(--bordLight);"></div>
+                        <div class="map-coords-hint">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            <span>Click on the map to set a location name hint</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group">
                     <label class="form-checkbox">
                         <input type="checkbox" name="enabled" {{if or (not .Data) (.Data.Enabled)}}checked{{end}}>
@@ -49,4 +62,71 @@
         </form>
     </div>
 </div>
+
+<script>
+function initDeviceMap() {
+    var mapEl = document.getElementById('device-map');
+    if (!mapEl || mapEl._leaflet_initialized) return;
+    mapEl._leaflet_initialized = true;
+
+    var defaultLat = -6.2088;
+    var defaultLng = 106.8456;
+
+    var map = L.map(mapEl, {
+        center: [defaultLat, defaultLng],
+        zoom: 5,
+        zoomControl: true
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18
+    }).addTo(map);
+
+    var marker = L.marker([defaultLat, defaultLng], {
+        draggable: true
+    }).addTo(map);
+
+    // Reverse geocode using Nominatim
+    function reverseGeocode(lat, lng) {
+        var locInput = document.getElementById('device-location');
+        var url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=10&accept-language=en';
+
+        fetch(url)
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                if (data && data.display_name) {
+                    // Take a short, readable location name
+                    var parts = data.display_name.split(',');
+                    var shortName = parts.slice(0, 3).join(',').trim();
+                    locInput.value = shortName;
+                }
+            })
+            .catch(function() {
+                // Silently fail - user can type manually
+            });
+    }
+
+    marker.on('dragend', function(e) {
+        var pos = marker.getLatLng();
+        reverseGeocode(pos.lat, pos.lng);
+    });
+
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        reverseGeocode(e.latlng.lat, e.latlng.lng);
+    });
+
+    setTimeout(function() { map.invalidateSize(); }, 100);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initDeviceMap);
+// Reinitialize after HTMX content swap
+document.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.elt && evt.detail.elt.querySelector('#device-map')) {
+        setTimeout(initDeviceMap, 50);
+    }
+});
+</script>
 {{end}}
