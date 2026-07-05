@@ -18,7 +18,13 @@
     <script>
         document.addEventListener('alpine:init', function() {
             Alpine.store('sidebar', {
-                open: false
+                open: false,
+                toggle() {
+                    this.open = !this.open;
+                },
+                close() {
+                    this.open = false;
+                }
             });
         });
     </script>
@@ -44,7 +50,7 @@
 <body>
     <div class="dashboard-layout">
         <!-- Mobile sidebar overlay -->
-        <div class="sidebar-overlay" x-show="$store.sidebar.open" x-cloak @click="$store.sidebar.open = false" x-transition.opacity></div>
+        <div class="sidebar-overlay" id="sidebarOverlay" x-show="$store.sidebar.open" @click="$store.sidebar.open = false" x-transition.opacity></div>
 
         <!-- Sidebar -->
         <aside class="sidebar" x-data x-bind:class="$store.sidebar.open ? 'sidebar-open' : ''">
@@ -140,6 +146,54 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
+        // Sidebar toggle — pure JS fallback that works independently of Alpine
+        (function() {
+            function initSidebar() {
+                var toggleBtn = document.querySelector('.sidebar-toggle');
+                var sidebar = document.querySelector('.sidebar');
+                var overlay = document.getElementById('sidebarOverlay');
+                var closeBtn = document.querySelector('.sidebar-close');
+                
+                if (!toggleBtn || !sidebar) return;
+                
+                function openSidebar() {
+                    sidebar.classList.add('sidebar-open');
+                    if (overlay) overlay.classList.add('overlay-visible');
+                }
+                
+                function closeSidebar() {
+                    sidebar.classList.remove('sidebar-open');
+                    if (overlay) overlay.classList.remove('overlay-visible');
+                }
+                
+                toggleBtn.addEventListener('click', function(e) {
+                    if (sidebar.classList.contains('sidebar-open')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
+                    // Also notify Alpine if available
+                    if (typeof Alpine !== 'undefined' && Alpine.store('sidebar')) {
+                        Alpine.store('sidebar').open = sidebar.classList.contains('sidebar-open');
+                    }
+                });
+                
+                if (overlay) {
+                    overlay.addEventListener('click', closeSidebar);
+                }
+                
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', closeSidebar);
+                }
+            }
+            
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initSidebar);
+            } else {
+                initSidebar();
+            }
+        })();
+
         // Theme toggle
         function toggleTheme() {
             var html = document.documentElement;

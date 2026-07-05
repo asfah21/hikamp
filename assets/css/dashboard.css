@@ -813,6 +813,11 @@ select.input-field {
   z-index: 90;
 }
 
+/* JS fallback visibility for overlay */
+.sidebar-overlay.overlay-visible {
+  display: block;
+}
+
 /* ============================================================
    RESPONSIVE — Mobile (<768px)
    ============================================================ */
