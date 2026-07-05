@@ -5,7 +5,8 @@
             <h3>Upload Audio</h3>
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
-        <form hx-post="/admin/audio/upload" hx-target="#main-content" hx-swap="innerHTML" enctype="multipart/form-data">
+        <form hx-post="/admin/audio/upload" hx-target="#main-content" hx-swap="innerHTML" hx-encoding="multipart/form-data">
+
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Audio File</label>

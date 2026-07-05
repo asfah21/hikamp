@@ -6,7 +6,9 @@ import (
 	"ego/templates"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -221,11 +223,32 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			category = "Custom"
 		}
 
+		// Ensure uploads directory exists
+		uploadDir := "uploads/audio"
+		if err := os.MkdirAll(uploadDir, 0755); err != nil {
+			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+			return
+		}
+
+		// Save file to disk
+		filePath := uploadDir + "/" + header.Filename
+		dst, err := os.Create(filePath)
+		if err != nil {
+			http.Error(w, "Failed to save file", http.StatusInternalServerError)
+			return
+		}
+		defer dst.Close()
+
+		if _, err := io.Copy(dst, file); err != nil {
+			http.Error(w, "Failed to save file", http.StatusInternalServerError)
+			return
+		}
+
 		audioFile := &models.AudioFile{
 			Name:     header.Filename,
 			Category: category,
 			FileSize: header.Size,
-			FilePath: "uploads/audio/" + header.Filename,
+			FilePath: filePath,
 		}
 
 		_, err = services.CreateAudioFile(audioFile)

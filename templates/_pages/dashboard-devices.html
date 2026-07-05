@@ -33,7 +33,8 @@
                     </span>
                 </td>
                 <td>{{.Firmware}}</td>
-                <td>{{.LastSync}}</td>
+                <td>{{if .LastSync.Valid}}{{.LastSync.String}}{{else}}-{{end}}</td>
+
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-ghost" hx-get="/admin/devices/edit/{{.ID}}" hx-target="#modal-container" hx-trigger="click" title="Edit">

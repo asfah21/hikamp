@@ -15,6 +15,13 @@
     </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/alpinejs@3.13.3" defer></script>
+    <script>
+        document.addEventListener('alpine:init', function() {
+            Alpine.store('sidebar', {
+                open: false
+            });
+        });
+    </script>
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/dark.css">
@@ -29,8 +36,11 @@
 </head>
 <body>
     <div class="dashboard-layout">
+        <!-- Mobile sidebar overlay -->
+        <div class="sidebar-overlay" x-show="$store.sidebar.open" x-cloak @click="$store.sidebar.open = false" x-transition.opacity></div>
+
         <!-- Sidebar -->
-        <aside class="sidebar" x-data="{ collapsed: false }">
+        <aside class="sidebar" x-data x-bind:class="$store.sidebar.open ? 'sidebar-open' : ''">
             <div class="sidebar-header">
                 <a href="/admin/dashboard" class="sidebar-brand">
                     <span class="sidebar-logo">
@@ -42,6 +52,9 @@
                     </span>
                     <span class="sidebar-title">{{.CompanyName}}</span>
                 </a>
+                <button class="sidebar-close" @click="$store.sidebar.open = false" aria-label="Close sidebar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
             </div>
             <nav class="sidebar-nav">
                 <a href="/admin/dashboard" class="sidebar-link {{if eq .Page "dashboard"}}active{{end}}">
@@ -90,6 +103,9 @@
             <!-- Top Bar -->
             <header class="topbar">
                 <div class="topbar-left">
+                    <button class="sidebar-toggle" @click="$store.sidebar.open = !$store.sidebar.open" aria-label="Toggle sidebar">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
                     <h1 class="topbar-title">{{.Title}}</h1>
                 </div>
                 <div class="topbar-right">
