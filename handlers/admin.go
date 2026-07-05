@@ -239,6 +239,21 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If HTMX request, render only the modal content without layout
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Upload Audio",
+			User:  user,
+			Data:  nil,
+		}
+		templates.RenderPartial(w, "dashboard", "audio_upload", pageData)
+		return
+	}
+
 	RenderDashboard(w, r, "audio_upload", nil)
 }
 
@@ -319,10 +334,27 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 		"Devices": devices,
 		"Audio":   audioFiles,
 	}
+
+	// If HTMX request, render only the modal content without layout
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Add Schedule",
+			User:  user,
+			Data:  data,
+		}
+		templates.RenderPartial(w, "dashboard", "schedules_form", pageData)
+		return
+	}
+
 	RenderDashboard(w, r, "schedules_form", data)
 }
 
 // AdminSchedulesEdit handles schedule edit
+
 func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/admin/schedules/edit/")
 	id, err := strconv.Atoi(idStr)
@@ -373,6 +405,22 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 		"Devices":  devices,
 		"Audio":    audioFiles,
 	}
+
+	// If HTMX request, render only the modal content without layout
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Edit Schedule",
+			User:  user,
+			Data:  data,
+		}
+		templates.RenderPartial(w, "dashboard", "schedules_form", pageData)
+		return
+	}
+
 	RenderDashboard(w, r, "schedules_form", data)
 }
 
