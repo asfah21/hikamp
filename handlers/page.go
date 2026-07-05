@@ -40,6 +40,12 @@ func RenderDashboard(w http.ResponseWriter, r *http.Request, page string, data i
 		CurrentPath: currentPath,
 	}
 
+	// If HTMX request (for page reload), render only the content partial without layout
+	if r.Header.Get("HX-Request") == "true" {
+		templates.RenderPartial(w, "dashboard", page, pageData)
+		return
+	}
+
 	templates.Render(w, "dashboard", page, pageData)
 }
 

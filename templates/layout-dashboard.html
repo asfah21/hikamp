@@ -123,7 +123,7 @@
             </header>
 
             <!-- Page Content -->
-            <div class="content-wrapper" id="main-content" hx-trigger="reload from:body" hx-get="{{.CurrentPath}}" hx-select="#main-content" hx-swap="outerHTML">
+            <div class="content-wrapper" id="main-content">
                 {{template "content" .}}
             </div>
         </main>
@@ -144,7 +144,6 @@
 
         // HTMX toast handling
         document.addEventListener('htmx:afterRequest', function(evt) {
-
             var trigger = evt.detail.xhr.getResponseHeader('HX-Trigger');
             if (trigger) {
                 try {
@@ -154,7 +153,9 @@
                     }
                     if (data.reload) {
                         setTimeout(function() {
-                            htmx.trigger('#main-content', 'reload');
+                            // Reload the current page content via HTMX
+                            var currentPath = window.location.pathname;
+                            htmx.ajax('GET', currentPath, {target: '#main-content', swap: 'innerHTML'});
                         }, 500);
                     }
                 } catch(e) {}
