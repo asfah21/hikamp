@@ -548,32 +548,56 @@ func AdminLogs(w http.ResponseWriter, r *http.Request) {
 	RenderDashboard(w, r, "logs", logs)
 }
 
-// AdminPrayer renders the prayer schedule page
-func AdminPrayer(w http.ResponseWriter, r *http.Request) {
+// AdminPrayerSetting renders the prayer location settings page
+func AdminPrayerSetting(w http.ResponseWriter, r *http.Request) {
 	location, err := services.GetPrayerLocation()
 	if err != nil {
 		location = nil
 	}
 
-	// Get upcoming prayer times (7 days)
+	data := map[string]interface{}{
+		"Location": location,
+	}
+	RenderDashboard(w, r, "prayer_setting", data)
+}
+
+// AdminPrayerTime renders the prayer times page
+func AdminPrayerTime(w http.ResponseWriter, r *http.Request) {
+	location, err := services.GetPrayerLocation()
+	if err != nil {
+		location = nil
+	}
+
 	var prayerTimes []models.PrayerTime
 	if location != nil {
 		prayerTimes, _ = services.GetUpcomingPrayerTimes(7)
 	}
 
-	// Get broadcast configs, devices, and audio files
+	data := map[string]interface{}{
+		"Location":    location,
+		"PrayerTimes": prayerTimes,
+	}
+	RenderDashboard(w, r, "prayer_time", data)
+}
+
+// AdminPrayerBroadcast renders the prayer broadcast settings page
+func AdminPrayerBroadcast(w http.ResponseWriter, r *http.Request) {
+	location, err := services.GetPrayerLocation()
+	if err != nil {
+		location = nil
+	}
+
 	broadcastConfigs, _ := services.GetPrayerBroadcastConfigs()
 	devices, _ := services.GetAllDevices()
 	audioFiles, _ := services.GetAllAudioFiles()
 
 	data := map[string]interface{}{
 		"Location":         location,
-		"PrayerTimes":      prayerTimes,
 		"BroadcastConfigs": broadcastConfigs,
 		"Devices":          devices,
 		"Audio":            audioFiles,
 	}
-	RenderDashboard(w, r, "prayer", data)
+	RenderDashboard(w, r, "prayer_broadcast", data)
 }
 
 // AdminPrayerSave handles prayer location save and auto-generates prayer times
@@ -603,7 +627,8 @@ func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 			go services.AutoGeneratePrayerTimes(savedLocation, 30)
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer location saved successfully. Generating prayer times...","reload":"true"}`)
+		// Redirect back to prayer setting page so content is refreshed
+		w.Header().Set("HX-Redirect", "/admin/prayer/setting")
 		w.WriteHeader(http.StatusOK)
 		return
 	}

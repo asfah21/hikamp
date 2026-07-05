@@ -41,7 +41,12 @@ func Router() http.Handler {
 	mux.HandleFunc("/admin/schedules/delete/", requireAuth(AdminSchedulesDelete))
 	mux.HandleFunc("/admin/schedules/sync/", requireAuth(AdminSchedulesSync))
 	mux.HandleFunc("/admin/logs", requireAuth(AdminLogs))
-	mux.HandleFunc("/admin/prayer", requireAuth(AdminPrayer))
+	// Prayer routes - 3 submenu pages
+	mux.HandleFunc("/admin/prayer", requireAuth(AdminPrayerSetting))
+	mux.HandleFunc("/admin/prayer/setting", requireAuth(AdminPrayerSetting))
+	mux.HandleFunc("/admin/prayer/time", requireAuth(AdminPrayerTime))
+	mux.HandleFunc("/admin/prayer/broadcast", requireAuth(AdminPrayerBroadcast))
+	// Prayer action routes
 	mux.HandleFunc("/admin/prayer/save", requireAuth(AdminPrayerSave))
 	mux.HandleFunc("/admin/prayer/generate", requireAuth(AdminPrayerGenerate))
 	mux.HandleFunc("/admin/prayer/broadcast/save", requireAuth(AdminPrayerBroadcastSave))

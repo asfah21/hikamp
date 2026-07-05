@@ -1,0 +1,141 @@
+{{define "content"}}
+{{$location := .Data.Location}}
+<div class="dashboard-panel" style="max-width: 700px;">
+    <div class="dashboard-panel-header">
+        <h3>Prayer Location Settings</h3>
+        <p>Set your location manually or click on the map to auto-fill coordinates.</p>
+    </div>
+    <div class="dashboard-panel-body">
+        <form hx-post="/admin/prayer/save" hx-target="#main-content" hx-swap="innerHTML" hx-on::after-request="setTimeout(initPrayerMap, 100)">
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Latitude</label>
+                    <input type="number" step="any" name="latitude" id="prayer-latitude" class="input-field" value="{{if $location}}{{$location.Latitude}}{{else}}-6.2088{{end}}" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Longitude</label>
+                    <input type="number" step="any" name="longitude" id="prayer-longitude" class="input-field" value="{{if $location}}{{$location.Longitude}}{{else}}106.8456{{end}}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Timezone</label>
+                <select name="timezone" class="input-field">
+                    {{if $location}}
+                    <option value="Asia/Jakarta" {{if eq $location.Timezone "Asia/Jakarta"}}selected{{end}}>Asia/Jakarta (WIB)</option>
+                    <option value="Asia/Makassar" {{if eq $location.Timezone "Asia/Makassar"}}selected{{end}}>Asia/Makassar (WITA)</option>
+                    <option value="Asia/Jayapura" {{if eq $location.Timezone "Asia/Jayapura"}}selected{{end}}>Asia/Jayapura (WIT)</option>
+                    {{else}}
+                    <option value="Asia/Makassar" selected>Asia/Makassar (WITA)</option>
+                    <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
+                    <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Calculation Method</label>
+                <select name="method" class="input-field">
+                    {{if $location}}
+                    <option value="3" {{if eq $location.Method 3}}selected{{end}}>Muslim World League (MWL)</option>
+                    <option value="4" {{if eq $location.Method 4}}selected{{end}}>Umm Al-Qura University, Makkah</option>
+                    <option value="99" {{if eq $location.Method 99}}selected{{end}}>Kemenag RI (Fajr 20°, Isha 18°)</option>
+                    {{else}}
+                    <option value="3" selected>Muslim World League (MWL)</option>
+                    <option value="4">Umm Al-Qura University, Makkah</option>
+                    <option value="99">Kemenag RI (Fajr 20°, Isha 18°)</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <!-- Map Picker -->
+            <div class="form-group">
+                <label class="form-label">Pick Location on Map</label>
+                <div class="map-picker-container">
+                    <div id="prayer-map" class="map-picker" style="height: 320px; border-radius: 8px; border: 1px solid var(--bordLight);"></div>
+                    <div class="map-coords-hint">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        <span>Drag the marker or click anywhere on the map to set coordinates</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-panel-footer">
+                <button type="submit" class="btn btn-primary">Save Location</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Initialize map when the page loads or after HTMX content swap
+function initPrayerMap() {
+    var mapEl = document.getElementById('prayer-map');
+    if (!mapEl) return;
+    // If already initialized, just invalidate size
+    if (mapEl._leaflet_initialized) {
+        if (mapEl._leaflet_map) {
+            setTimeout(function() { mapEl._leaflet_map.invalidateSize(); }, 50);
+        }
+        return;
+    }
+    mapEl._leaflet_initialized = true;
+
+    var lat = parseFloat(document.getElementById('prayer-latitude').value) || -6.2088;
+    var lng = parseFloat(document.getElementById('prayer-longitude').value) || 106.8456;
+
+    var map = L.map(mapEl, {
+        center: [lat, lng],
+        zoom: 10,
+        zoomControl: true
+    });
+    mapEl._leaflet_map = map;
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 18
+    }).addTo(map);
+
+    var marker = L.marker([lat, lng], {
+        draggable: true
+    }).addTo(map);
+
+    // Update inputs when marker is dragged
+    marker.on('dragend', function(e) {
+        var pos = marker.getLatLng();
+        document.getElementById('prayer-latitude').value = pos.lat.toFixed(6);
+        document.getElementById('prayer-longitude').value = pos.lng.toFixed(6);
+    });
+
+    // Update marker when map is clicked
+    map.on('click', function(e) {
+        marker.setLatLng(e.latlng);
+        document.getElementById('prayer-latitude').value = e.latlng.lat.toFixed(6);
+        document.getElementById('prayer-longitude').value = e.latlng.lng.toFixed(6);
+    });
+
+    // Sync marker when inputs change manually
+    document.getElementById('prayer-latitude').addEventListener('input', syncMarkerFromInputs);
+    document.getElementById('prayer-longitude').addEventListener('input', syncMarkerFromInputs);
+
+    function syncMarkerFromInputs() {
+        var newLat = parseFloat(document.getElementById('prayer-latitude').value);
+        var newLng = parseFloat(document.getElementById('prayer-longitude').value);
+        if (!isNaN(newLat) && !isNaN(newLng)) {
+            marker.setLatLng([newLat, newLng]);
+            map.setView([newLat, newLng], map.getZoom());
+        }
+    }
+
+    // Fix map rendering after Alpine/HTMX swap
+    setTimeout(function() { map.invalidateSize(); }, 100);
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initPrayerMap);
+// Reinitialize after HTMX content swap
+document.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.elt && evt.detail.elt.querySelector('#prayer-map')) {
+        setTimeout(initPrayerMap, 50);
+    }
+});
+</script>
+{{end}}
