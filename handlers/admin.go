@@ -753,6 +753,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
 		audioID, _ := strconv.Atoi(r.FormValue("audio_id"))
 		volume, _ := strconv.Atoi(r.FormValue("volume"))
+		durationMinutes, _ := strconv.Atoi(r.FormValue("duration"))
 
 		device, err := services.GetDeviceByID(deviceID)
 		if err != nil {
@@ -767,7 +768,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Send broadcast to the Hikvision device
-		err = services.BroadcastToDevice(device, audioID, volume)
+		err = services.BroadcastToDevice(device, audioID, volume, durationMinutes)
 		if err != nil {
 			// Log the failed broadcast
 			log := &models.BroadcastLog{
@@ -778,7 +779,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 				AudioName:  audio.Name,
 				Result:     "failed",
 				Status:     "error",
-				Duration:   volume,
+				Duration:   durationMinutes,
 			}
 			services.CreateLog(log)
 
@@ -796,7 +797,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			AudioName:  audio.Name,
 			Result:     "success",
 			Status:     "completed",
-			Duration:   volume,
+			Duration:   durationMinutes,
 		}
 		services.CreateLog(log)
 

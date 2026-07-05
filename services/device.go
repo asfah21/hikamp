@@ -61,7 +61,7 @@ func SyncDeviceInfo(id int) error {
 }
 
 // BroadcastToDevice sends a broadcast command to a Hikvision device
-func BroadcastToDevice(device *models.Device, audioID int, volume int) error {
+func BroadcastToDevice(device *models.Device, audioID int, volume int, durationMinutes int) error {
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
-	return client.BroadcastNow(audioID, volume)
+	return client.BroadcastNow(audioID, volume, durationMinutes)
 }

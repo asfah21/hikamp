@@ -158,14 +158,16 @@ func (c *Client) DeleteAudio(audioID int) error {
 }
 
 // BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
-// This creates a temporary schedule that starts now and ends in 5 minutes.
-// For DS-QAE1A80G1-VB, this is the most reliable approach since the real-time
-// broadcast endpoint is not yet verified.
-func (c *Client) BroadcastNow(audioID int, volume int) error {
+// Creates a temporary schedule that starts now and ends after the specified duration.
+// Uses the verified payload structure from the official Hikvision Web UI.
+func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) error {
 	now := time.Now()
-	beginTime := now.Format("15:04:05-07:00")
-	endTime := now.Add(5 * time.Minute).Format("15:04:05-07:00")
-	dateStr := now.Format("2006-01-02")
+	// Use +08:00 timezone format as seen in the verified Web UI example
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	nowLocal := now.In(loc)
+	beginTime := nowLocal.Format("15:04:05-07:00")
+	endTime := nowLocal.Add(time.Duration(durationMinutes) * time.Minute).Format("15:04:05-07:00")
+	dateStr := nowLocal.Format("2006-01-02")
 
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
