@@ -22,12 +22,17 @@
             });
         });
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
     <link rel="stylesheet" href="/assets/css/dark.css">
     <style>
+        /* Alpine.js cloak - hide elements before Alpine initializes */
+        [x-cloak] { display: none !important; }
         /* Toast notification */
-        .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
+        .toast-container { position: fixed; bottom: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
         .toast { padding: 0.75rem 1.25rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--bordLight); box-shadow: var(--shadow2); font-size: 14px; animation: slideIn 0.3s ease; }
         .toast-success { border-left: 3px solid var(--success); }
         .toast-error { border-left: 3px solid var(--error); }
@@ -159,6 +164,13 @@
                         }, 500);
                     }
                 } catch(e) {}
+            }
+        });
+
+        // Reinitialize Alpine.js after HTMX content swap
+        document.addEventListener('htmx:afterSwap', function(evt) {
+            if (typeof Alpine !== 'undefined') {
+                Alpine.initTree(evt.detail.elt);
             }
         });
 

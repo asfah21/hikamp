@@ -115,6 +115,8 @@
 /* --- Select dropdown arrow (dark mode) --- */
 [data-theme="dark"] select.input-field {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6a66' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
   background-color: #0f0f0f;
 }
 
@@ -139,10 +141,30 @@
   background: #444444;
 }
 
-/* --- Auth card --- */
+/* --- Auth page (Linear/Vercel login) --- */
 [data-theme="dark"] .auth-card {
   background: var(--surface);
   border-color: var(--bordLight);
+}
+[data-theme="dark"] .auth-input {
+  background: #0f0f0f;
+  border-color: var(--bordLight);
+  color: var(--ink);
+}
+[data-theme="dark"] .auth-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(42,161,166,0.15);
+}
+[data-theme="dark"] .auth-alert {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  color: #fca5a5;
+}
+[data-theme="dark"] .auth-alert svg {
+  color: #fca5a5;
+}
+[data-theme="dark"] .auth-btn:hover {
+  box-shadow: 0 4px 12px rgba(42,161,166,0.3);
 }
 
 /* --- Modal close button --- */

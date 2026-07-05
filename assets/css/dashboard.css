@@ -467,7 +467,6 @@
   border-radius: var(--radiusBtn);
   font-weight: 600;
   font-size: 14px;
-  font-family: 'Inter', system-ui, sans-serif;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;

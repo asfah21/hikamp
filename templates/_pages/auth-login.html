@@ -1,34 +1,40 @@
 {{define "content"}}
-<div class="auth-card" style="background: var(--surface); border: 1px solid var(--bordLight); border-radius: 12px; padding: 2.5rem; box-shadow: var(--shadow2);">
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <div style="width: 48px; height: 48px; background: var(--accent); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+<div class="auth-card">
+    <div class="auth-header">
+        <div class="auth-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                 <path d="M2 17l10 5 10-5"/>
                 <path d="M2 12l10 5 10-5"/>
             </svg>
         </div>
-        <h1 style="font-size: 1.5rem; font-weight: 700; color: var(--ink);">Hikvision Broadcast</h1>
-        <p style="color: var(--inkMuted); font-size: 14px;">Sign in to manage your broadcast system</p>
+        <h1 class="auth-title">Hikvision Broadcast</h1>
+        <p class="auth-subtitle">Sign in to manage your broadcast system</p>
     </div>
 
     {{if .Error}}
-    <div class="alert alert-error" style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1rem; color: var(--error); font-size: 14px;">
+    <div class="auth-alert">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
         {{.Error}}
     </div>
     {{end}}
 
-    <form hx-post="/login" hx-target="this" hx-swap="outerHTML">
-        <div class="form-group">
-            <label class="form-label">Username</label>
-            <input type="text" name="username" class="input-field" placeholder="Enter your username" required autofocus>
+    <form hx-post="/login" hx-target="this" hx-swap="outerHTML" class="auth-form">
+        <div class="auth-field">
+            <label for="username" class="auth-label">Username</label>
+            <input type="text" id="username" name="username" class="auth-input" placeholder="Enter your username" required autofocus>
         </div>
-        <div class="form-group">
-            <label class="form-label">Password</label>
-            <input type="password" name="password" class="input-field" placeholder="Enter your password" required>
+        <div class="auth-field">
+            <label for="password" class="auth-label">Password</label>
+            <input type="password" id="password" name="password" class="auth-input" placeholder="Enter your password" required>
         </div>
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 0.5rem;">
+        <button type="submit" class="auth-btn">
             Sign In
+            <svg class="auth-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+            </svg>
         </button>
     </form>
 </div>

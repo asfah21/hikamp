@@ -82,7 +82,7 @@ html {
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: var(--bg);
@@ -474,7 +474,6 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radiusBtn);
   font-weight: 600;
   font-size: 14px;
-  font-family: 'Inter', system-ui, sans-serif;
   border: none;
   cursor: pointer;
   transition: background 0.2s ease;
@@ -494,7 +493,6 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radiusBtn);
   font-weight: 500;
   font-size: 14px;
-  font-family: 'Inter', system-ui, sans-serif;
   border: 1px solid var(--bord);
   cursor: pointer;
   transition: border-color 0.2s ease, color 0.2s ease;
@@ -739,7 +737,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--bordLight);
   line-height: 1;
   margin-bottom: var(--space-sm);
-  font-family: 'Inter', sans-serif;
   letter-spacing: -0.04em;
 }
 
@@ -982,7 +979,6 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radiusBtn);
   font-weight: 600;
   font-size: 15px;
-  font-family: 'Inter', system-ui, sans-serif;
   border: none;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
@@ -1204,7 +1200,6 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   color: var(--accent);
   line-height: 1;
-  font-family: 'Inter', system-ui, sans-serif;
   letter-spacing: -0.03em;
 }
 
@@ -1253,7 +1248,6 @@ a { color: inherit; text-decoration: none; }
   color: var(--bordLight);
   letter-spacing: -0.04em;
   margin-bottom: 8px;
-  font-family: 'Inter', system-ui, sans-serif;
   user-select: none;
 }
 
@@ -1297,7 +1291,6 @@ a { color: inherit; text-decoration: none; }
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: left;
-  font-family: 'Inter', system-ui, sans-serif;
   position: relative;
 }
 
@@ -1330,7 +1323,6 @@ a { color: inherit; text-decoration: none; }
   font-weight: 700;
   flex-shrink: 0;
   transition: all 0.2s ease;
-  font-family: 'Inter', system-ui, sans-serif;
 }
 
 .quiz-option:hover .quiz-option-marker {
@@ -1373,7 +1365,6 @@ a { color: inherit; text-decoration: none; }
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
-  font-family: 'Inter', system-ui, sans-serif;
   cursor: pointer;
   transition: all 0.2s ease;
   border: none;
@@ -1454,7 +1445,6 @@ a { color: inherit; text-decoration: none; }
   background: var(--surface);
   color: var(--ink);
   font-size: 15px;
-  font-family: 'Inter', system-ui, sans-serif;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -2164,7 +2154,6 @@ p, li, .text-body { text-wrap: pretty; }
   background: var(--surface);
   color: var(--ink);
   font-size: 14px;
-  font-family: 'Inter', system-ui, sans-serif;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
