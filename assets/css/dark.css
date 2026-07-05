@@ -1,0 +1,165 @@
+/* ============================================================
+   Dark Theme — loaded via <link> in layout-dashboard.html
+   ============================================================ */
+
+/* --- CSS Variable Overrides --- */
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg: #0f0f0f;
+  --surface: #1a1a1a;
+  --bgSection: #242424;
+  --bgFooter: #1a1a1a;
+
+  /* Ink */
+  --ink: #e8e6e3;
+  --inkMuted: #a09e9a;
+  --inkSubtle: #6b6a66;
+
+  /* Accent */
+  --accent: #2aa1a6;
+  --accentHover: #38bcc2;
+  --accentLight: #1a2f30;
+
+  /* Borders */
+  --bord: #333333;
+  --bordLight: #2a2a2a;
+
+  /* Shadows */
+  --shadow1: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow2: 0 4px 16px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.3);
+}
+
+/* --- Public Navbar --- */
+[data-theme="dark"] .navbar.scrolled {
+  background: rgba(15,15,15,0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ============================================================
+   DASHBOARD DARK OVERRIDES
+   ============================================================ */
+
+/* --- Stat Card Icons (hardcoded light bg in templates) --- */
+[data-theme="dark"] .stat-icon[style*="background: var(--accentLight)"] {
+  background: var(--accentLight) !important;
+}
+[data-theme="dark"] .stat-icon[style*="background: #d1fae5"] {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+}
+[data-theme="dark"] .stat-icon[style*="background: #fef2f2"] {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .stat-icon[style*="background: #ede9fe"] {
+  background: #4c1d95 !important;
+  color: #c4b5fd !important;
+}
+[data-theme="dark"] .stat-icon[style*="background: #fef3c7"] {
+  background: #78350f !important;
+  color: #fcd34d !important;
+}
+
+/* --- Badges --- */
+[data-theme="dark"] .badge-success {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+}
+[data-theme="dark"] .badge-error {
+  background: #7f1d1d !important;
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .badge-warning {
+  background: #78350f !important;
+  color: #fcd34d !important;
+}
+[data-theme="dark"] .badge-neutral {
+  background: #374151 !important;
+  color: #d1d5db !important;
+}
+[data-theme="dark"] .badge-info {
+  background: var(--accentLight) !important;
+  color: var(--accent) !important;
+}
+
+/* --- Alert --- */
+[data-theme="dark"] .alert-error {
+  background: #7f1d1d !important;
+  border-color: #991b1b !important;
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .alert-success {
+  background: #064e3b !important;
+  border-color: #065f46 !important;
+  color: #6ee7b7 !important;
+}
+
+/* --- Modal Overlay --- */
+[data-theme="dark"] .modal-overlay {
+  background: rgba(0,0,0,0.7);
+}
+
+/* --- Table hover --- */
+[data-theme="dark"] .table tr:hover td {
+  background: var(--bgSection) !important;
+}
+
+/* --- Input fields --- */
+[data-theme="dark"] .input-field {
+  background: #0f0f0f;
+  border-color: var(--bordLight);
+  color: var(--ink);
+}
+
+/* --- Select dropdown arrow (dark mode) --- */
+[data-theme="dark"] select.input-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6a66' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-color: #0f0f0f;
+}
+
+/* --- Toggle slider --- */
+[data-theme="dark"] .toggle-slider {
+  background: #444444;
+}
+
+/* --- Pagination --- */
+[data-theme="dark"] .pagination a:hover {
+  background: var(--bgSection);
+}
+
+/* --- Toast --- */
+[data-theme="dark"] .toast {
+  background: var(--surface);
+  border-color: var(--bordLight);
+}
+
+/* --- Scrollbar thumb --- */
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: #444444;
+}
+
+/* --- Auth card --- */
+[data-theme="dark"] .auth-card {
+  background: var(--surface);
+  border-color: var(--bordLight);
+}
+
+/* --- Modal close button --- */
+[data-theme="dark"] .modal-header .btn-ghost {
+  color: var(--inkMuted);
+}
+[data-theme="dark"] .modal-header .btn-ghost:hover {
+  color: var(--ink);
+  background: var(--bgSection);
+}
+
+/* --- Empty state links --- */
+[data-theme="dark"] .table td a {
+  color: var(--accent);
+}
+
+/* --- Form checkbox --- */
+[data-theme="dark"] .form-checkbox input[type="checkbox"] {
+  accent-color: var(--accent);
+}

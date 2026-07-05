@@ -4,10 +4,20 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} - {{.CompanyName}}</title>
+    <script>
+        // Apply saved theme immediately — before any rendering — to prevent white flash
+        (function() {
+            var saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            }
+        })();
+    </script>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <script src="https://unpkg.com/alpinejs@3.13.3" defer></script>
     <link rel="stylesheet" href="/assets/css/style.css">
     <link rel="stylesheet" href="/assets/css/dashboard.css">
+    <link rel="stylesheet" href="/assets/css/dark.css">
     <style>
         /* Toast notification */
         .toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; }
@@ -115,14 +125,6 @@
             html.setAttribute('data-theme', next);
             localStorage.setItem('theme', next);
         }
-
-        // Restore saved theme on load
-        (function() {
-            var saved = localStorage.getItem('theme');
-            if (saved) {
-                document.documentElement.setAttribute('data-theme', saved);
-            }
-        })();
 
         // HTMX toast handling
         document.addEventListener('htmx:afterRequest', function(evt) {

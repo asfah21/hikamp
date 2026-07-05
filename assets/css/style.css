@@ -124,39 +124,6 @@ a { color: inherit; text-decoration: none; }
 .text-machiavellian { color: var(--machiavellian); }
 .text-psychopath { color: var(--psychopath); }
 
-/* --- Dark Theme --- */
-[data-theme="dark"] {
-  /* Backgrounds */
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --bgSection: #242424;
-  --bgFooter: #1a1a1a;
-
-  /* Ink */
-  --ink: #e8e6e3;
-  --inkMuted: #a09e9a;
-  --inkSubtle: #6b6a66;
-
-  /* Accent */
-  --accent: #2aa1a6;
-  --accentHover: #38bcc2;
-  --accentLight: #1a2f30;
-
-  /* Borders */
-  --bord: #333333;
-  --bordLight: #2a2a2a;
-
-  /* Shadows */
-  --shadow1: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
-  --shadow2: 0 4px 16px rgba(0,0,0,0.4), 0 12px 40px rgba(0,0,0,0.3);
-}
-
-[data-theme="dark"] .navbar.scrolled {
-  background: rgba(15,15,15,0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
 /* --- Selection --- */
 ::selection {
   background: var(--accentLight);
