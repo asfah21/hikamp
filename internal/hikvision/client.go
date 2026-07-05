@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -45,29 +46,44 @@ func (c *Client) DeviceInfo() (map[string]string, error) {
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	// Parse XML response
-	type XMLDeviceInfo struct {
-		DeviceName           string `xml:"deviceName"`
-		DeviceID             string `xml:"deviceID"`
-		DeviceType           string `xml:"deviceType"`
-		SerialNumber         string `xml:"serialNumber"`
-		FirmwareVersion      string `xml:"firmwareVersion"`
-		FirmwareReleasedDate string `xml:"firmwareReleasedDate"`
+	// Parse XML response - use a generic decoder to handle namespaces
+	// Hikvision devices often include xmlns attributes that break strict XML matching
+	result := map[string]string{}
+	decoder := xml.NewDecoder(bytes.NewReader(body))
+	var currentElement string
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse device info XML: %w", err)
+		}
+
+		switch t := token.(type) {
+		case xml.StartElement:
+			currentElement = t.Name.Local
+		case xml.CharData:
+			text := strings.TrimSpace(string(t))
+			if text != "" && currentElement != "" {
+				switch currentElement {
+				case "deviceName":
+					result["deviceName"] = text
+				case "deviceID":
+					result["deviceID"] = text
+				case "deviceType":
+					result["deviceType"] = text
+				case "serialNumber":
+					result["serialNumber"] = text
+				case "firmwareVersion":
+					result["firmwareVersion"] = text
+				case "firmwareReleasedDate":
+					result["firmwareReleasedDate"] = text
+				}
+			}
+		}
 	}
 
-	var info XMLDeviceInfo
-	if err := xml.Unmarshal(body, &info); err != nil {
-		return nil, fmt.Errorf("failed to parse device info XML: %w", err)
-	}
-
-	result := map[string]string{
-		"deviceName":           info.DeviceName,
-		"deviceID":             info.DeviceID,
-		"deviceType":           info.DeviceType,
-		"serialNumber":         info.SerialNumber,
-		"firmwareVersion":      info.FirmwareVersion,
-		"firmwareReleasedDate": info.FirmwareReleasedDate,
-	}
 	return result, nil
 }
 

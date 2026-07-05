@@ -88,9 +88,23 @@ func (da *DigestAuth) GenerateAuthorizationHeader(method, uri string) string {
 	return auth
 }
 
-// DoRequest performs an HTTP request with Digest Authentication
+// DoRequest performs an HTTP request with Digest Authentication.
+// For POST requests, bodyBytes should be provided so the body can be re-read
+// for the authenticated retry. If bodyBytes is nil, the body will be read from
+// the body reader (but only once).
 func DoRequest(client *http.Client, method, url string, username, password string, body io.Reader, contentType string) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
+	// Pre-read body bytes so we can reuse them for the retry
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read body: %w", err)
+		}
+	}
+
+	// First attempt without auth to get the digest challenge
+	req, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -99,7 +113,6 @@ func DoRequest(client *http.Client, method, url string, username, password strin
 		req.Header.Set("Content-Type", contentType)
 	}
 
-	// First attempt without auth to get the digest challenge
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -124,20 +137,8 @@ func DoRequest(client *http.Client, method, url string, username, password strin
 	da.Username = username
 	da.Password = password
 
-	// For GET requests, body is nil; for POST, we need to re-read the body
-	var reqBody io.Reader
-	if body != nil {
-		// If body was already read, we need to recreate it
-		// Since we can't re-read the original body, we'll use a copy approach
-		bodyBytes, err := io.ReadAll(body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read body: %w", err)
-		}
-		reqBody = bytes.NewReader(bodyBytes)
-	}
-
-	// Create new request with digest auth
-	req2, err := http.NewRequest(method, url, reqBody)
+	// Create new request with digest auth, reusing the pre-read body bytes
+	req2, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authenticated request: %w", err)
 	}
