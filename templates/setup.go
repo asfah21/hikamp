@@ -96,6 +96,29 @@ func Init() {
 	log.Printf("Loaded %d templates", len(store.templates))
 }
 
+// RenderPartial renders only the page template content without layout (for HTMX modals)
+func RenderPartial(w http.ResponseWriter, layout, page string, data interface{}) {
+	// Find page template
+	pageKey := findTemplateKey(layout, page)
+	if pageKey == "" {
+		log.Printf("Page template not found for layout=%s page=%s", layout, page)
+		http.Error(w, "Page template not found", http.StatusInternalServerError)
+		return
+	}
+
+	tmpl, ok := store.templates[pageKey]
+	if !ok {
+		log.Printf("Page template key %s not found in store", pageKey)
+		return
+	}
+
+	err := tmpl.ExecuteTemplate(w, "content", data)
+	if err != nil {
+		log.Printf("Template execution error: %v", err)
+		http.Error(w, "Template execution error: "+err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // Render renders a template by combining layout + page
 func Render(w http.ResponseWriter, layout, page string, data interface{}) {
 	// Find layout template

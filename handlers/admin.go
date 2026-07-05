@@ -3,6 +3,7 @@ package handlers
 import (
 	"ego/models"
 	"ego/services"
+	"ego/templates"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -58,6 +59,21 @@ func AdminDevicesCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If HTMX request, render only the modal content without layout
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Add Device",
+			User:  user,
+			Data:  nil,
+		}
+		templates.RenderPartial(w, "dashboard", "devices_form", pageData)
+		return
+	}
+
 	RenderDashboard(w, r, "devices_form", nil)
 }
 
@@ -99,6 +115,21 @@ func AdminDevicesEdit(w http.ResponseWriter, r *http.Request) {
 	device, err := services.GetDeviceByID(id)
 	if err != nil {
 		http.Error(w, "Device not found", http.StatusNotFound)
+		return
+	}
+
+	// If HTMX request, render only the modal content without layout
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Edit Device",
+			User:  user,
+			Data:  device,
+		}
+		templates.RenderPartial(w, "dashboard", "devices_form", pageData)
 		return
 	}
 
