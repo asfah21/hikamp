@@ -25,12 +25,19 @@ func RenderDashboard(w http.ResponseWriter, r *http.Request, page string, data i
 		}
 	}
 
+	// Get current path for HTMX reload
+	currentPath := r.URL.Path
+	if currentPath == "" || currentPath == "/admin" {
+		currentPath = "/admin/dashboard"
+	}
+
 	pageData := templates.PageData{
 		Title:       getPageTitle(page),
 		User:        user,
 		Data:        data,
 		CompanyName: companyName,
 		Page:        page,
+		CurrentPath: currentPath,
 	}
 
 	templates.Render(w, "dashboard", page, pageData)

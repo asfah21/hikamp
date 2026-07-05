@@ -4,7 +4,6 @@ import (
 	"ego/models"
 	"ego/services"
 	"ego/templates"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -176,16 +175,68 @@ func AdminDevicesTestConnection(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.Header().Set("HX-Trigger", `{"toast":"Connection failed: `+err.Error()+`"}`)
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, `<div class="badge badge-error">Connection Failed</div>`)
+		// Render failure modal
+		renderTestResultModal(w, device.Name, "Connection Failed", "error", nil)
 		return
 	}
 
 	// Update device status
 	services.SyncDeviceInfo(id)
 
-	infoJSON, _ := json.MarshalIndent(info, "", "  ")
 	w.Header().Set("HX-Trigger", `{"toast":"Connection successful"}`)
-	fmt.Fprintf(w, `<div class="badge badge-success">Online</div><pre class="mt-2 text-xs">%s</pre>`, string(infoJSON))
+	renderTestResultModal(w, device.Name, "Online", "success", info)
+}
+
+// renderTestResultModal renders the test connection result in a modal
+func renderTestResultModal(w http.ResponseWriter, deviceName string, status string, statusType string, info map[string]string) {
+	statusBadge := fmt.Sprintf(`<span class="badge badge-%s">%s</span>`, statusType, status)
+
+	// Build device info table rows
+	infoRows := ""
+	if info != nil {
+		fields := []struct {
+			Label string
+			Key   string
+		}{
+			{"Device Name", "deviceName"},
+			{"Device ID", "deviceID"},
+			{"Device Type", "deviceType"},
+			{"Serial Number", "serialNumber"},
+			{"Firmware Version", "firmwareVersion"},
+			{"Firmware Released Date", "firmwareReleasedDate"},
+		}
+		for _, f := range fields {
+			value := info[f.Key]
+			if value == "" {
+				value = "-"
+			}
+			infoRows += fmt.Sprintf(`<tr><td style="padding: 0.5rem; font-weight: 600; color: var(--ink); white-space: nowrap;">%s</td><td style="padding: 0.5rem; color: var(--inkMuted);">%s</td></tr>`, f.Label, value)
+		}
+	}
+
+	html := fmt.Sprintf(`
+<div id="modal-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>Test Connection: %s</h2>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 1rem;">Status: %s</div>
+            <table style="width: 100%%; border-collapse: collapse;">
+                <tbody>%s</tbody>
+            </table>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Close</button>
+        </div>
+    </div>
+</div>`, deviceName, statusBadge, infoRows)
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, html)
 }
 
 // AdminAudio renders the audio library page

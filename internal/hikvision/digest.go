@@ -1,6 +1,7 @@
 package hikvision
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/rand"
 	"encoding/hex"
@@ -103,15 +104,16 @@ func DoRequest(client *http.Client, method, url string, username, password strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		return resp, nil
 	}
+	defer resp.Body.Close()
 
 	// Parse WWW-Authenticate header
 	authHeader := resp.Header.Get("WWW-Authenticate")
 	if authHeader == "" {
+		// No auth header, return the 401 response as-is
 		return resp, nil
 	}
 
@@ -122,8 +124,20 @@ func DoRequest(client *http.Client, method, url string, username, password strin
 	da.Username = username
 	da.Password = password
 
+	// For GET requests, body is nil; for POST, we need to re-read the body
+	var reqBody io.Reader
+	if body != nil {
+		// If body was already read, we need to recreate it
+		// Since we can't re-read the original body, we'll use a copy approach
+		bodyBytes, err := io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read body: %w", err)
+		}
+		reqBody = bytes.NewReader(bodyBytes)
+	}
+
 	// Create new request with digest auth
-	req2, err := http.NewRequest(method, url, body)
+	req2, err := http.NewRequest(method, url, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create authenticated request: %w", err)
 	}

@@ -17,6 +17,7 @@ type PageData struct {
 	Data        interface{}
 	CompanyName string
 	Page        string
+	CurrentPath string
 }
 
 // TemplateStore holds all parsed templates

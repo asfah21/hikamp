@@ -123,7 +123,7 @@
             </header>
 
             <!-- Page Content -->
-            <div class="content-wrapper" id="main-content">
+            <div class="content-wrapper" id="main-content" hx-trigger="reload from:body" hx-get="{{.CurrentPath}}" hx-select="#main-content" hx-swap="outerHTML">
                 {{template "content" .}}
             </div>
         </main>
