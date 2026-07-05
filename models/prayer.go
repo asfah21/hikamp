@@ -23,3 +23,22 @@ type PrayerTime struct {
 	LocationID int    `json:"location_id"`
 	CreatedAt  string `json:"created_at"`
 }
+
+// PrayerBroadcastConfig stores audio & device mapping for each prayer time
+type PrayerBroadcastConfig struct {
+	ID       int    `json:"id"`
+	Prayer   string `json:"prayer"` // fajr, dhuhr, asr, maghrib, isha
+	AudioID  int    `json:"audio_id"`
+	DeviceID int    `json:"device_id"`
+	Volume   int    `json:"volume"`
+	Enabled  bool   `json:"enabled"`
+}
+
+// PrayerNames maps prayer keys to display names
+var PrayerNames = map[string]string{
+	"fajr":    "Fajr",
+	"dhuhr":   "Dhuhr",
+	"asr":     "Asr",
+	"maghrib": "Maghrib",
+	"isha":    "Isha",
+}

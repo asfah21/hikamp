@@ -139,6 +139,14 @@ func createTables() {
 			created_at TIMESTAMP DEFAULT NOW(),
 			UNIQUE(date, location_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS prayer_broadcast_configs (
+			id SERIAL PRIMARY KEY,
+			prayer VARCHAR(20) UNIQUE NOT NULL,
+			audio_id INTEGER REFERENCES audio_files(id) ON DELETE SET NULL,
+			device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
+			volume INTEGER DEFAULT 50,
+			enabled BOOLEAN DEFAULT false
+		)`,
 	}
 
 	for _, table := range tables {
@@ -170,6 +178,16 @@ func createTables() {
 		DB.QueryRow("SELECT COUNT(*) FROM settings WHERE key = $1", key).Scan(&sCount)
 		if sCount == 0 {
 			DB.Exec("INSERT INTO settings (key, value, description) VALUES ($1, $2, $3)", key, value, "")
+		}
+	}
+
+	// Seed default prayer broadcast configs if not exists
+	prayers := []string{"fajr", "dhuhr", "asr", "maghrib", "isha"}
+	for _, p := range prayers {
+		var pCount int
+		DB.QueryRow("SELECT COUNT(*) FROM prayer_broadcast_configs WHERE prayer = $1", p).Scan(&pCount)
+		if pCount == 0 {
+			DB.Exec("INSERT INTO prayer_broadcast_configs (prayer, volume, enabled) VALUES ($1, 50, false)", p)
 		}
 	}
 

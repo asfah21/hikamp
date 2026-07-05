@@ -555,13 +555,28 @@ func AdminPrayer(w http.ResponseWriter, r *http.Request) {
 		location = nil
 	}
 
+	// Get upcoming prayer times (7 days)
+	var prayerTimes []models.PrayerTime
+	if location != nil {
+		prayerTimes, _ = services.GetUpcomingPrayerTimes(7)
+	}
+
+	// Get broadcast configs, devices, and audio files
+	broadcastConfigs, _ := services.GetPrayerBroadcastConfigs()
+	devices, _ := services.GetAllDevices()
+	audioFiles, _ := services.GetAllAudioFiles()
+
 	data := map[string]interface{}{
-		"Location": location,
+		"Location":         location,
+		"PrayerTimes":      prayerTimes,
+		"BroadcastConfigs": broadcastConfigs,
+		"Devices":          devices,
+		"Audio":            audioFiles,
 	}
 	RenderDashboard(w, r, "prayer", data)
 }
 
-// AdminPrayerSave handles prayer location save
+// AdminPrayerSave handles prayer location save and auto-generates prayer times
 func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		latitude, _ := strconv.ParseFloat(r.FormValue("latitude"), 64)
@@ -581,7 +596,102 @@ func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer location saved successfully","reload":"true"}`)
+		// Get the saved location with ID
+		savedLocation, err := services.GetPrayerLocation()
+		if err == nil {
+			// Auto-generate prayer times for the next 30 days
+			go services.AutoGeneratePrayerTimes(savedLocation, 30)
+		}
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer location saved successfully. Generating prayer times...","reload":"true"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+}
+
+// AdminPrayerGenerate handles manual prayer times generation
+func AdminPrayerGenerate(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		location, err := services.GetPrayerLocation()
+		if err != nil {
+			w.Header().Set("HX-Trigger", `{"toast":"Please set a location first"}`)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		daysStr := r.FormValue("days")
+		days := 30
+		if daysStr != "" {
+			if d, err := strconv.Atoi(daysStr); err == nil && d > 0 {
+				days = d
+			}
+		}
+
+		err = services.AutoGeneratePrayerTimes(location, days)
+		if err != nil {
+			w.Header().Set("HX-Trigger", `{"toast":"Failed to generate prayer times: `+err.Error()+`"}`)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer times generated for `+strconv.Itoa(days)+` days","reload":"true"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+}
+
+// AdminPrayerBroadcastSave handles saving prayer broadcast configs
+func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		prayers := []string{"fajr", "dhuhr", "asr", "maghrib", "isha"}
+		for _, prayer := range prayers {
+			audioID, _ := strconv.Atoi(r.FormValue("audio_" + prayer))
+			deviceID, _ := strconv.Atoi(r.FormValue("device_" + prayer))
+			volume, _ := strconv.Atoi(r.FormValue("volume_" + prayer))
+			enabled := r.FormValue("enabled_"+prayer) == "on"
+
+			cfg := &models.PrayerBroadcastConfig{
+				Prayer:   prayer,
+				AudioID:  audioID,
+				DeviceID: deviceID,
+				Volume:   volume,
+				Enabled:  enabled,
+			}
+			services.SavePrayerBroadcastConfig(cfg)
+		}
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer broadcast settings saved","reload":"true"}`)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+}
+
+// AdminPrayerCreateSchedules creates broadcast schedules from prayer times
+func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		location, err := services.GetPrayerLocation()
+		if err != nil {
+			w.Header().Set("HX-Trigger", `{"toast":"Please set a location first"}`)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		daysStr := r.FormValue("days")
+		days := 30
+		if daysStr != "" {
+			if d, err := strconv.Atoi(daysStr); err == nil && d > 0 {
+				days = d
+			}
+		}
+
+		err = services.CreatePrayerSchedules(location, days)
+		if err != nil {
+			w.Header().Set("HX-Trigger", `{"toast":"Failed to create schedules: `+err.Error()+`"}`)
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer schedules created for `+strconv.Itoa(days)+` days","reload":"true"}`)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
