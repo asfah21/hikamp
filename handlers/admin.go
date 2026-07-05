@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"ego/models"
 	"ego/services"
 	"ego/templates"
@@ -633,9 +634,9 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		// Log the broadcast
 		log := &models.BroadcastLog{
 			Time:       r.FormValue("time"),
-			DeviceID:   deviceID,
+			DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 			DeviceName: device.Name,
-			AudioID:    audioID,
+			AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
 			AudioName:  audio.Name,
 			Result:     "success",
 			Status:     "completed",
