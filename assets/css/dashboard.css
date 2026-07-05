@@ -832,7 +832,7 @@ select.input-field {
   }
 
   .sidebar-overlay {
-    display: block;
+    /* Visibility controlled by Alpine.js x-show */
   }
 
   /* Sidebar becomes a slide-out drawer */

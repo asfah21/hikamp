@@ -50,7 +50,7 @@
 <body>
     <div class="dashboard-layout">
         <!-- Mobile sidebar overlay -->
-        <div class="sidebar-overlay" id="sidebarOverlay" x-show="$store.sidebar.open" @click="$store.sidebar.open = false" x-transition.opacity></div>
+        <div class="sidebar-overlay" id="sidebarOverlay" x-data x-show="$store.sidebar.open" @click="$store.sidebar.open = false" x-transition.opacity></div>
 
         <!-- Sidebar -->
         <aside class="sidebar" x-data x-bind:class="$store.sidebar.open ? 'sidebar-open' : ''">
@@ -146,7 +146,7 @@
     <div class="toast-container" id="toast-container"></div>
 
     <script>
-        // Sidebar toggle — pure JS fallback that works independently of Alpine
+        // Sidebar toggle — delegates to Alpine store
         (function() {
             function initSidebar() {
                 var toggleBtn = document.querySelector('.sidebar-toggle');
@@ -156,27 +156,24 @@
                 
                 if (!toggleBtn || !sidebar) return;
                 
-                function openSidebar() {
-                    sidebar.classList.add('sidebar-open');
-                    if (overlay) overlay.classList.add('overlay-visible');
+                function toggleSidebar() {
+                    if (typeof Alpine !== 'undefined' && Alpine.store('sidebar')) {
+                        Alpine.store('sidebar').toggle();
+                    } else {
+                        // Fallback if Alpine not loaded
+                        sidebar.classList.toggle('sidebar-open');
+                    }
                 }
                 
                 function closeSidebar() {
-                    sidebar.classList.remove('sidebar-open');
-                    if (overlay) overlay.classList.remove('overlay-visible');
+                    if (typeof Alpine !== 'undefined' && Alpine.store('sidebar')) {
+                        Alpine.store('sidebar').close();
+                    } else {
+                        sidebar.classList.remove('sidebar-open');
+                    }
                 }
                 
-                toggleBtn.addEventListener('click', function(e) {
-                    if (sidebar.classList.contains('sidebar-open')) {
-                        closeSidebar();
-                    } else {
-                        openSidebar();
-                    }
-                    // Also notify Alpine if available
-                    if (typeof Alpine !== 'undefined' && Alpine.store('sidebar')) {
-                        Alpine.store('sidebar').open = sidebar.classList.contains('sidebar-open');
-                    }
-                });
+                toggleBtn.addEventListener('click', toggleSidebar);
                 
                 if (overlay) {
                     overlay.addEventListener('click', closeSidebar);
