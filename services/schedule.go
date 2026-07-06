@@ -2,6 +2,8 @@ package services
 
 import (
 	"fmt"
+	"log"
+	"regexp"
 	"strings"
 	"time"
 
@@ -83,11 +85,11 @@ func SyncScheduleToDevice(scheduleID int) error {
 	// Generate a stable planSchemeID
 	planSchemeID := getStablePlanSchemeID(schedule)
 
-	// Try to delete existing schedule with this ID first (ignore error if it doesn't exist)
-	client.DeletePlanScheme(planSchemeID)
-
 	// Build Hikvision schedule payload with proper time format and stable ID
 	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID)
+
+	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s", planSchemeID, schedule.BeginTime, schedule.EndTime)
+
 	return client.CreateSchedule(payload)
 }
 
@@ -106,10 +108,20 @@ func getTimezoneOffset(tzName string) string {
 	return fmt.Sprintf("-%02d:%02d", -hours, mins)
 }
 
-// formatTimeForHikvision converts "HH:MM" or "HH:MM:SS" to "HH:MM:SS+08:00" format
+// formatTimeForHikvision converts a time string to "HH:MM:SS+HH:MM" format.
+// Handles various input formats:
+//   - "HH:MM" -> "HH:MM:SS+08:00"
+//   - "HH:MM:SS" -> "HH:MM:SS+08:00"
+//   - "HH:MM:SS+08:00" -> "HH:MM:SS+08:00" (already formatted, timezone is replaced)
+//   - "" -> returns empty string (caller should validate)
 func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
-	// Remove any existing timezone suffix if present
-	timeStr = strings.TrimSuffix(timeStr, timezoneOffset)
+	if timeStr == "" {
+		return ""
+	}
+
+	// Remove any existing timezone suffix (match any +/-HH:MM pattern at the end)
+	re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+	timeStr = re.ReplaceAllString(timeStr, "")
 
 	// Count colons to determine format
 	parts := strings.Split(timeStr, ":")
@@ -137,57 +149,43 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	today := time.Now().Format("2006-01-02")
 	futureDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
 
-	payload := map[string]interface{}{
-		"broadcastPlanSchemeList": []map[string]interface{}{
-			{
-				"planSchemeID":   planSchemeID,
-				"enabled":        s.Enabled,
-				"planSchemeName": s.Name,
-				"audioOutID":     []int{1},
-			},
-		},
-		"terminalInfoList": []map[string]interface{}{
-			{
-				"terminalID": 1,
-				"audioOutID": []int{1},
-			},
+	// Build schedule list entry
+	scheduleEntry := map[string]interface{}{
+		"beginTime": beginTime,
+		"endTime":   endTime,
+		"playMode":  "order",
+		"operation": map[string]interface{}{
+			"audioSource":   "customAudio",
+			"customAudioID": []int{s.AudioID},
+			"audioLevel":    5,
+			"audioVolume":   s.Volume,
 		},
 	}
 
 	// Build schedule info based on type
-	scheduleList := []map[string]interface{}{
-		{
-			"beginTime": beginTime,
-			"endTime":   endTime,
-			"playMode":  "order",
-			"operation": map[string]interface{}{
-				"audioSource":   "customAudio",
-				"customAudioID": []int{s.AudioID},
-				"audioLevel":    5,
-				"audioVolume":   s.Volume,
-			},
-		},
-	}
+	var scheduleInfo map[string]interface{}
 
 	switch s.ScheduleType {
 	case "daily":
-		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime":         today,
-			"stopTime":          futureDate,
-			"dailyScheduleList": scheduleList,
+		scheduleInfo = map[string]interface{}{
+			"startTime": today,
+			"stopTime":  futureDate,
+			"dailyScheduleList": []map[string]interface{}{
+				scheduleEntry,
+			},
 		}
 	case "weekly":
 		dayOfWeek := 1
 		if s.DayOfWeek != nil {
 			dayOfWeek = *s.DayOfWeek
 		}
-		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["weeklyScheduleInfo"] = map[string]interface{}{
+		scheduleInfo = map[string]interface{}{
 			"startTime": today,
 			"stopTime":  futureDate,
 			"weeklyScheduleList": []map[string]interface{}{
 				{
 					"dayOfWeek":    dayOfWeek,
-					"scheduleList": scheduleList,
+					"scheduleList": []map[string]interface{}{scheduleEntry},
 				},
 			},
 		}
@@ -196,11 +194,37 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime":         dateStr,
-			"stopTime":          dateStr,
-			"dailyScheduleList": scheduleList,
+		scheduleInfo = map[string]interface{}{
+			"startTime": dateStr,
+			"stopTime":  dateStr,
+			"dailyScheduleList": []map[string]interface{}{
+				scheduleEntry,
+			},
 		}
+	}
+
+	// Determine the schedule info key name
+	scheduleInfoKey := "dailyScheduleInfo"
+	if s.ScheduleType == "weekly" {
+		scheduleInfoKey = "weeklyScheduleInfo"
+	}
+
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
+			{
+				"planSchemeID":   planSchemeID,
+				"enabled":        s.Enabled,
+				"planSchemeName": s.Name,
+				"audioOutID":     []int{1},
+				scheduleInfoKey:  scheduleInfo,
+			},
+		},
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
 	}
 
 	return payload

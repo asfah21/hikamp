@@ -240,6 +240,8 @@ func (c *Client) CreateSchedule(payload interface{}) error {
 		return fmt.Errorf("failed to marshal payload: %w", err)
 	}
 
+	log.Printf("[HIKVISION] CreateSchedule payload: %s", string(jsonData))
+
 	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
 	if err != nil {
 		return fmt.Errorf("create schedule request failed: %w", err)
