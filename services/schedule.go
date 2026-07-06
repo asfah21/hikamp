@@ -57,6 +57,7 @@ func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
 // SyncScheduleToDevice syncs a schedule to a Hikvision device.
 // Uses a stable planSchemeID and deletes any existing schedule with the same ID first
 // to prevent duplicates on re-sync.
+// Uses HikvisionAudioID from the audio_files table as customAudioID in the payload.
 func SyncScheduleToDevice(scheduleID int) error {
 	schedule, err := repositories.GetScheduleByID(scheduleID)
 	if err != nil {
@@ -73,6 +74,15 @@ func SyncScheduleToDevice(scheduleID int) error {
 		return err
 	}
 
+	// Lookup the audio file to get HikvisionAudioID
+	audioFile, err := repositories.GetAudioFileByID(schedule.AudioID)
+	if err != nil {
+		return fmt.Errorf("audio file not found (ID: %d): %w", schedule.AudioID, err)
+	}
+	if audioFile.HikvisionAudioID == 0 {
+		return fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
+	}
+
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 	// Get timezone offset from location settings
@@ -86,7 +96,7 @@ func SyncScheduleToDevice(scheduleID int) error {
 	// Generate a stable planSchemeID
 	planSchemeID := getStablePlanSchemeID(schedule)
 
-	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s", planSchemeID, schedule.BeginTime, schedule.EndTime)
+	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s, hikvisionAudioID=%d", planSchemeID, schedule.BeginTime, schedule.EndTime, audioFile.HikvisionAudioID)
 
 	// Step 1: Delete existing plan scheme with the same ID (if any)
 	// This prevents "duplicate" or conflict errors on re-sync.
@@ -101,7 +111,7 @@ func SyncScheduleToDevice(scheduleID int) error {
 	}
 
 	// Step 2: Build and send the new schedule payload
-	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID)
+	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID, audioFile.HikvisionAudioID)
 
 	err = client.CreateSchedule(payload)
 	if err != nil {
@@ -181,7 +191,9 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 //   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
 //   - startTime/stopTime format: "YYYY-MM-DD+HH:MM" (with "+" separator)
 //   - beginTime/endTime format: "HH:MM:SS+HH:MM" (plus separator)
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
+//
+// hikvisionAudioID is the customAudioID from the Hikvision device (not the local audio_files.id).
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string, hikvisionAudioID int) map[string]interface{} {
 	// Format times using Hikvision Web UI format: "HH:MM:SS+HH:MM" (plus separator)
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
@@ -194,13 +206,14 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
 
 	// Build schedule list entry
+	// IMPORTANT: customAudioID must be the Hikvision device's audio ID, not the local database ID
 	scheduleEntry := map[string]interface{}{
 		"beginTime": beginTime,
 		"endTime":   endTime,
 		"playMode":  "order",
 		"operation": map[string]interface{}{
 			"audioSource":   "customAudio",
-			"customAudioID": []int{s.AudioID},
+			"customAudioID": []int{hikvisionAudioID},
 			"audioLevel":    5,
 			"audioVolume":   s.Volume,
 		},

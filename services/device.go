@@ -4,6 +4,7 @@ import (
 	"ego/internal/hikvision"
 	"ego/models"
 	"ego/repositories"
+	"fmt"
 )
 
 // GetAllDevices returns all devices
@@ -60,8 +61,19 @@ func SyncDeviceInfo(id int) error {
 	return repositories.UpdateDeviceStatus(id, "online", firmware)
 }
 
-// BroadcastToDevice sends a broadcast command to a Hikvision device
+// BroadcastToDevice sends a broadcast command to a Hikvision device.
+// audioID is the local audio_files.id — this function looks up the HikvisionAudioID
+// to use as customAudioID in the broadcast payload.
 func BroadcastToDevice(device *models.Device, audioID int, volume int, durationMinutes int) error {
+	// Lookup the audio file to get HikvisionAudioID
+	audioFile, err := repositories.GetAudioFileByID(audioID)
+	if err != nil {
+		return fmt.Errorf("audio file not found (ID: %d): %w", audioID, err)
+	}
+	if audioFile.HikvisionAudioID == 0 {
+		return fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
+	}
+
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 	// Get timezone offset from location settings for proper time formatting
@@ -72,5 +84,5 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
-	return client.BroadcastNowWithTimezone(audioID, volume, durationMinutes, timezoneOffset)
+	return client.BroadcastNowWithTimezone(audioFile.HikvisionAudioID, volume, durationMinutes, timezoneOffset)
 }

@@ -2,13 +2,13 @@ package handlers
 
 import (
 	"database/sql"
+	"ego/internal/hikvision"
 	"ego/models"
 	"ego/services"
 	"ego/templates"
 	"fmt"
-	"io"
+	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -284,7 +284,8 @@ func AdminAudio(w http.ResponseWriter, r *http.Request) {
 	RenderDashboard(w, r, "audio", files)
 }
 
-// AdminAudioUpload handles audio file upload
+// AdminAudioUpload handles audio file upload directly to Hikvision device.
+// No local file storage — audio is uploaded directly to the device.
 func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseMultipartForm(32 << 20) // 32MB max
@@ -300,60 +301,61 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			category = "Custom"
 		}
 
-		// Ensure uploads directory exists
-		uploadDir := "uploads/audio"
-		if err := os.MkdirAll(uploadDir, 0755); err != nil {
-			http.Error(w, "Failed to create upload directory", http.StatusInternalServerError)
+		deviceIDStr := r.FormValue("device_id")
+		deviceID := 0
+		if deviceIDStr != "" {
+			deviceID, _ = strconv.Atoi(deviceIDStr)
+		}
+
+		if deviceID == 0 {
+			setHXTriggerToast(w, "Please select a device to upload to")
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Save file to disk
-		filePath := uploadDir + "/" + header.Filename
-		dst, err := os.Create(filePath)
+		device, err := services.GetDeviceByID(deviceID)
+		if err != nil || device == nil {
+			http.Error(w, "Device not found", http.StatusNotFound)
+			return
+		}
+
+		// Upload directly to Hikvision device
+		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+		audioID, err := client.UploadAudio(file, header.Filename)
 		if err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
-			return
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, file); err != nil {
-			http.Error(w, "Failed to save file", http.StatusInternalServerError)
+			setHXTriggerToast(w, "Failed to upload audio to device: "+err.Error())
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Read audio metadata using ffprobe (duration, sample rate)
-		meta, _ := services.GetAudioMetadata(filePath)
-		duration := 0
-		durationStr := ""
-		sampleRate := 0
-		if meta != nil {
-			duration = meta.Duration
-			durationStr = meta.DurationStr
-			sampleRate = meta.SampleRate
-		}
-
-		// Fallback if ffprobe is not available
-		if duration == 0 {
-			duration, _ = services.GetAudioDuration(filePath)
-		}
+		// After upload, search audio on device to get metadata (duration, path)
+		audioInfo, _ := client.SearchAudioByID(audioID)
 
 		audioFile := &models.AudioFile{
-			Name:        header.Filename,
-			Category:    category,
-			Duration:    duration,
-			DurationStr: durationStr,
-			FileSize:    header.Size,
-			SampleRate:  sampleRate,
-			FilePath:    filePath,
+			Name:             header.Filename,
+			Category:         category,
+			Duration:         0,
+			DurationStr:      "",
+			FileSize:         header.Size,
+			HikvisionAudioID: audioID,
+			HikvisionPath:    "",
+			DeviceID:         &deviceID,
+		}
+
+		if audioInfo != nil {
+			audioFile.Duration = audioInfo.Duration
+			audioFile.DurationStr = audioInfo.DurationStr
+			audioFile.HikvisionPath = audioInfo.HikvisionPath
 		}
 
 		_, err = services.CreateAudioFile(audioFile)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			setHXTriggerToast(w, "Audio uploaded to device but failed to save to database: "+err.Error())
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		setHXTriggerToast(w, "Audio uploaded successfully", true)
+		setHXTriggerToast(w, "Audio uploaded to device successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -374,6 +376,84 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	RenderDashboard(w, r, "audio_upload", nil)
+}
+
+// AdminAudioSync syncs audio files from Hikvision device to local database.
+// Fetches the audio list from the device and upserts into audio_files table.
+func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		deviceIDStr := r.FormValue("device_id")
+		deviceID := 0
+		if deviceIDStr != "" {
+			deviceID, _ = strconv.Atoi(deviceIDStr)
+		}
+
+		if deviceID == 0 {
+			setHXTriggerToast(w, "Please select a device to sync from")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		device, err := services.GetDeviceByID(deviceID)
+		if err != nil || device == nil {
+			http.Error(w, "Device not found", http.StatusNotFound)
+			return
+		}
+
+		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+		audioList, err := client.SearchAudio()
+		if err != nil {
+			setHXTriggerToast(w, "Failed to fetch audio from device: "+err.Error())
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		synced := 0
+		for _, audio := range audioList {
+			audioFile := &models.AudioFile{
+				Name:             audio.CustomAudioName,
+				Category:         "Custom",
+				Duration:         audio.Duration,
+				DurationStr:      audio.DurationStr,
+				FileSize:         int64(audio.AudioFileSize),
+				HikvisionAudioID: audio.CustomAudioID,
+				HikvisionPath:    audio.HikvisionPath,
+				DeviceID:         &deviceID,
+			}
+			_, err := services.UpsertAudioFileByHikvisionID(audioFile)
+			if err != nil {
+				log.Printf("[AUDIO SYNC] Failed to upsert audio '%s': %v", audio.CustomAudioName, err)
+				continue
+			}
+			synced++
+		}
+
+		setHXTriggerToast(w, fmt.Sprintf("Synced %d audio files from device", synced), true)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// GET: render sync form
+	devices, _ := services.GetAllDevices()
+	data := map[string]interface{}{
+		"Devices": devices,
+	}
+
+	if r.Header.Get("HX-Request") == "true" {
+		user, _ := r.Context().Value("user").(*models.User)
+		if user == nil {
+			user = &models.User{Name: "Admin", Username: "admin"}
+		}
+		pageData := templates.PageData{
+			Title: "Sync Audio from Device",
+			User:  user,
+			Data:  data,
+		}
+		templates.RenderPartial(w, "dashboard", "audio_sync", pageData)
+		return
+	}
+
+	RenderDashboard(w, r, "audio_sync", data)
 }
 
 // AdminAudioDelete handles audio file deletion

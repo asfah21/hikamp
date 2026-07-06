@@ -34,3 +34,8 @@ func DeleteAudioFile(id int) error {
 func SearchAudioFiles(query string) ([]models.AudioFile, error) {
 	return repositories.SearchAudioFiles(query)
 }
+
+// UpsertAudioFileByHikvisionID inserts or updates an audio file by Hikvision audio ID
+func UpsertAudioFileByHikvisionID(f *models.AudioFile) (int, error) {
+	return repositories.UpsertAudioFileByHikvisionID(f)
+}

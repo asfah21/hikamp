@@ -222,17 +222,17 @@ Every Hikvision communication must use these methods.
 
 DeviceInfo()
 
-SearchSchedule()
+SearchPlanScheme()
 
 CreateSchedule()
 
-UpdateSchedule()
-
-DeleteSchedule()
+DeletePlanScheme()
 
 SearchAudio()
 
-UploadAudio()
+SearchAudioByID()
+
+UploadAudio() — returns (int, error) where int is the customAudioID assigned by device
 
 DeleteAudio()
 
@@ -241,6 +241,25 @@ BroadcastNow()
 StopBroadcast()
 
 TestConnection()
+
+---
+
+## Audio Architecture (All from Hikvision)
+
+Audio files are stored **only on the Hikvision device**, not on the local server.
+
+### Flow:
+1. **Upload**: User uploads MP3 → directly to Hikvision device → device assigns `customAudioID` → saved to local DB with `hikvision_audio_id`
+2. **Sync**: User clicks "Sync from Device" → fetches all audio from Hikvision → upserts into local DB
+3. **Broadcast/Schedule**: Uses `hikvision_audio_id` as `customAudioID` in payload
+
+### Database fields:
+- `hikvision_audio_id` (INTEGER UNIQUE) — the `customAudioID` from Hikvision device
+- `hikvision_path` (VARCHAR) — path on device (e.g., `/emmc/config/Media/file.mp3`)
+- No local file storage — `file_path` field removed
+
+### Key rule:
+When building broadcast payloads, `customAudioID` must be the **Hikvision device's audio ID**, not the local database ID.
 
 ---
 
@@ -261,6 +280,57 @@ Implementation details:
 
 ---
 
+## Verified Endpoints (from Web UI Network)
+
+### Upload Audio
+
+Method
+
+POST
+
+Endpoint
+
+/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json
+
+Content-Type
+
+multipart/form-data
+
+Purpose
+
+Upload an audio file (MP3/WAV) to the Hikvision device.
+
+Format (from Web UI Network request):
+
+```
+------WebKitFormBoundary...
+Content-Disposition: form-data; name="CustomAudioInfo"
+
+{"CustomAudioInfo":{"customAudioName":"filename.mp3","audioFileFormat":"mp3","audioFileSize":391095}}
+------WebKitFormBoundary...
+Content-Disposition: form-data; name="audioData"; filename="filename.mp3"
+Content-Type: audio/mpeg
+
+<binary data>
+------WebKitFormBoundary...--
+```
+
+### Search Audio
+
+Method
+
+GET
+
+Endpoint
+
+/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json
+
+Purpose
+
+List all uploaded audio files on the device.
+
+---
+
 ## Unknown Endpoints
 
 The following endpoints are NOT verified.
@@ -270,10 +340,6 @@ SearchPlanScheme
 ModifyPlanScheme
 
 DeletePlanScheme
-
-UploadAudio
-
-SearchAudio
 
 StopBroadcast
 

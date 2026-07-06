@@ -3,7 +3,11 @@
     <div class="search-bar">
         <input type="text" class="input-field" placeholder="Search audio files..." name="q" hx-get="/admin/audio" hx-trigger="keyup changed delay:500ms" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">
     </div>
-    <div>
+    <div style="display: flex; gap: 0.5rem;">
+        <a href="/admin/audio/sync" class="btn btn-secondary" hx-get="/admin/audio/sync" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+            Sync from Device
+        </a>
         <a href="/admin/audio/upload" class="btn btn-primary" hx-get="/admin/audio/upload" hx-target="#modal-container" hx-trigger="click">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Upload Audio

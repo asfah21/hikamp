@@ -301,18 +301,164 @@ func (c *Client) CreateScheduleWithRetry(payload interface{}, maxRetries int) er
 	return fmt.Errorf("create schedule failed after %d retries: %w", maxRetries, lastErr)
 }
 
-// SearchAudio searches for audio files on the device
-func (c *Client) SearchAudio() (interface{}, error) {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return nil, fmt.Errorf("SearchAudio not yet implemented - inspect Hikvision Web UI Network tab first")
+// HikvisionAudioInfo represents audio file info from Hikvision device
+type HikvisionAudioInfo struct {
+	CustomAudioID     int    `json:"customAudioID"`
+	CustomAudioName   string `json:"customAudioName"`
+	CustomAudioPath   string `json:"customAudioPath"`
+	AudioFileFormat   string `json:"audioFileFormat"`
+	AudioFileSize     int    `json:"audioFileSize"`
+	AudioFileDuration int    `json:"audioFileDuration"`
+	Duration          int    // computed from AudioFileDuration
+	DurationStr       string // formatted as mm:ss
+	HikvisionPath     string // alias for CustomAudioPath
 }
 
-// UploadAudio uploads an audio file to the device
-func (c *Client) UploadAudio(audioData io.Reader, filename string) error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("UploadAudio not yet implemented - inspect Hikvision Web UI Network tab first")
+// SearchAudio searches for audio files on the device
+func (c *Client) SearchAudio() ([]HikvisionAudioInfo, error) {
+	url := c.BaseURL + "/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json"
+	resp, err := c.doRequestWithRetry("GET", url, nil, "", 1)
+	if err != nil {
+		return nil, fmt.Errorf("search audio request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		logFailedResponse("GET", url, "", resp, body)
+		return nil, fmt.Errorf("search audio failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse JSON response
+	var result struct {
+		CustomAudioInfoList []HikvisionAudioInfo `json:"CustomAudioInfoList"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse search audio response: %w", err)
+	}
+
+	// Fill computed fields
+	for i := range result.CustomAudioInfoList {
+		info := &result.CustomAudioInfoList[i]
+		info.Duration = info.AudioFileDuration
+		info.HikvisionPath = info.CustomAudioPath
+		if info.Duration > 0 {
+			minutes := info.Duration / 60
+			seconds := info.Duration % 60
+			info.DurationStr = fmt.Sprintf("%d:%02d", minutes, seconds)
+		}
+	}
+
+	return result.CustomAudioInfoList, nil
+}
+
+// SearchAudioByID searches for a specific audio file on the device by its customAudioID
+func (c *Client) SearchAudioByID(audioID int) (*HikvisionAudioInfo, error) {
+	audioList, err := c.SearchAudio()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, info := range audioList {
+		if info.CustomAudioID == audioID {
+			return &info, nil
+		}
+	}
+
+	return nil, fmt.Errorf("audio with ID %d not found on device", audioID)
+}
+
+// UploadAudio uploads an audio file to the device using multipart/form-data.
+// Returns the customAudioID assigned by the device.
+// Endpoint: POST /ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json
+// Format verified from official Hikvision Web UI Network request:
+//   - Part 1: JSON field "CustomAudioInfo" with name, format, size
+//   - Part 2: File field "audioData" with Content-Type: audio/mpeg
+func (c *Client) UploadAudio(audioData io.Reader, filename string) (int, error) {
+	url := c.BaseURL + "/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json"
+
+	// Read the audio data to get its size
+	audioBytes, err := io.ReadAll(audioData)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read audio data: %w", err)
+	}
+
+	// Determine file format from extension
+	fileFormat := "mp3"
+	if strings.HasSuffix(strings.ToLower(filename), ".wav") {
+		fileFormat = "wav"
+	}
+
+	// Build multipart form data matching Web UI format
+	var requestBody bytes.Buffer
+	writer := NewMultipartWriter(&requestBody)
+
+	// Part 1: JSON metadata
+	jsonPart := map[string]interface{}{
+		"CustomAudioInfo": map[string]interface{}{
+			"customAudioName": filename,
+			"audioFileFormat": fileFormat,
+			"audioFileSize":   len(audioBytes),
+		},
+	}
+	jsonBytes, _ := json.Marshal(jsonPart)
+	if err := writer.WriteField("CustomAudioInfo", string(jsonBytes)); err != nil {
+		return 0, fmt.Errorf("failed to write JSON field: %w", err)
+	}
+
+	// Part 2: Audio file data
+	if err := writer.WriteFile("audioData", filename, "audio/mpeg", audioBytes); err != nil {
+		return 0, fmt.Errorf("failed to write audio file: %w", err)
+	}
+
+	contentType := writer.FormDataContentType()
+	if err := writer.Close(); err != nil {
+		return 0, fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	log.Printf("[HIKVISION] Uploading audio: %s (%d bytes, format: %s)", filename, len(audioBytes), fileFormat)
+
+	resp, err := DoRequest(c.DigestClient, "POST", url, &requestBody, contentType)
+	if err != nil {
+		return 0, fmt.Errorf("upload audio request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		logFailedResponse("POST", url, string(jsonBytes), resp, body)
+		return 0, fmt.Errorf("upload audio failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response to get the assigned audio ID
+	var uploadResult struct {
+		CustomAudioInfo struct {
+			CustomAudioID int `json:"customAudioID"`
+		} `json:"CustomAudioInfo"`
+	}
+	if err := json.Unmarshal(body, &uploadResult); err == nil && uploadResult.CustomAudioInfo.CustomAudioID > 0 {
+		log.Printf("[HIKVISION] Audio uploaded successfully: %s (ID: %d)", filename, uploadResult.CustomAudioInfo.CustomAudioID)
+		return uploadResult.CustomAudioInfo.CustomAudioID, nil
+	}
+
+	// If we can't parse the response, search for the audio by name to get its ID
+	log.Printf("[HIKVISION] Audio uploaded successfully: %s (searching for assigned ID)", filename)
+	audioList, err := c.SearchAudio()
+	if err != nil {
+		return 0, fmt.Errorf("audio uploaded but failed to get ID: %w", err)
+	}
+
+	for _, info := range audioList {
+		if info.CustomAudioName == filename {
+			return info.CustomAudioID, nil
+		}
+	}
+
+	return 0, fmt.Errorf("audio uploaded but could not determine assigned ID")
 }
 
 // DeleteAudio deletes an audio file from the device
