@@ -296,16 +296,14 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Read audio metadata using ffprobe (duration, bitrate, sample rate)
+		// Read audio metadata using ffprobe (duration, sample rate)
 		meta, _ := services.GetAudioMetadata(filePath)
 		duration := 0
 		durationStr := ""
-		bitrate := 0
 		sampleRate := 0
 		if meta != nil {
 			duration = meta.Duration
 			durationStr = meta.DurationStr
-			bitrate = meta.Bitrate
 			sampleRate = meta.SampleRate
 		}
 
@@ -320,7 +318,6 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			Duration:    duration,
 			DurationStr: durationStr,
 			FileSize:    header.Size,
-			Bitrate:     bitrate,
 			SampleRate:  sampleRate,
 			FilePath:    filePath,
 		}
@@ -798,7 +795,15 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
 		audioID, _ := strconv.Atoi(r.FormValue("audio_id"))
 		volume, _ := strconv.Atoi(r.FormValue("volume"))
-		durationMinutes, _ := strconv.Atoi(r.FormValue("duration"))
+
+		// Parse duration from hours:minutes:seconds picker
+		durationHours, _ := strconv.Atoi(r.FormValue("duration_hours"))
+		durationMinutes, _ := strconv.Atoi(r.FormValue("duration_minutes"))
+		durationSeconds, _ := strconv.Atoi(r.FormValue("duration_seconds"))
+		totalMinutes := durationHours*60 + durationMinutes + durationSeconds/60
+		if durationSeconds%60 > 0 {
+			totalMinutes++
+		}
 
 		device, err := services.GetDeviceByID(deviceID)
 		if err != nil {
@@ -813,7 +818,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Send broadcast to the Hikvision device
-		err = services.BroadcastToDevice(device, audioID, volume, durationMinutes)
+		err = services.BroadcastToDevice(device, audioID, volume, totalMinutes)
 		if err != nil {
 			// Log the failed broadcast
 			log := &models.BroadcastLog{
@@ -824,7 +829,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 				AudioName:  audio.Name,
 				Result:     "failed",
 				Status:     "error",
-				Duration:   durationMinutes,
+				Duration:   totalMinutes,
 			}
 			services.CreateLog(log)
 
@@ -842,7 +847,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			AudioName:  audio.Name,
 			Result:     "success",
 			Status:     "completed",
-			Duration:   durationMinutes,
+			Duration:   totalMinutes,
 		}
 		services.CreateLog(log)
 

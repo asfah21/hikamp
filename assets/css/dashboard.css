@@ -694,18 +694,22 @@ select.input-field {
 }
 
 /* Checkbox Toggle */
-.toggle {
+.toggle,
+.toggle-switch {
   position: relative;
   display: inline-flex;
   width: 44px;
   height: 24px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-.toggle input {
+.toggle input,
+.toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
+  position: absolute;
 }
 
 .toggle-slider {
@@ -728,12 +732,66 @@ select.input-field {
   transition: transform 0.2s ease;
 }
 
-.toggle input:checked + .toggle-slider {
+.toggle input:checked + .toggle-slider,
+.toggle-switch input:checked + .toggle-slider {
   background: var(--accent);
 }
 
-.toggle input:checked + .toggle-slider::before {
+.toggle input:checked + .toggle-slider::before,
+.toggle-switch input:checked + .toggle-slider::before {
   transform: translateX(20px);
+}
+
+/* Duration Picker — radio button group styled as chips */
+.duration-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.duration-option {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.duration-option input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.duration-option span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--inkMuted);
+  background: var(--bgSection);
+  border: 1px solid var(--bordLight);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.duration-option input:checked + span {
+  color: var(--accent);
+  background: var(--accentLight);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.duration-option input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.duration-option:hover span {
+  color: var(--ink);
+  border-color: var(--bord);
 }
 
 /* Empty State */

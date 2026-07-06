@@ -18,7 +18,6 @@ import (
 type AudioMetadata struct {
 	Duration    int    // in seconds
 	DurationStr string // formatted as mm:ss
-	Bitrate     int    // in kbps
 	SampleRate  int    // in Hz
 }
 
@@ -26,17 +25,15 @@ type AudioMetadata struct {
 type ffprobeOutput struct {
 	Format struct {
 		Duration string `json:"duration"`
-		BitRate  string `json:"bit_rate"`
 	} `json:"format"`
 	Streams []struct {
 		CodecType  string `json:"codec_type"`
 		SampleRate string `json:"sample_rate"`
-		BitRate    string `json:"bit_rate"`
 	} `json:"streams"`
 }
 
 // GetAudioMetadata reads audio metadata using ffprobe.
-// Returns duration (seconds), duration string (mm:ss), bitrate (kbps), and sample rate (Hz).
+// Returns duration (seconds), duration string (mm:ss), and sample rate (Hz).
 func GetAudioMetadata(filePath string) (*AudioMetadata, error) {
 	cmd := exec.Command("ffprobe",
 		"-v", "quiet",
@@ -69,14 +66,6 @@ func GetAudioMetadata(filePath string) (*AudioMetadata, error) {
 		}
 	}
 
-	// Parse bitrate from format (overall bitrate in bps -> kbps)
-	if info.Format.BitRate != "" {
-		bitrateBps, err := strconv.Atoi(info.Format.BitRate)
-		if err == nil {
-			meta.Bitrate = bitrateBps / 1000
-		}
-	}
-
 	// Parse sample rate from the first audio stream
 	for _, stream := range info.Streams {
 		if stream.CodecType == "audio" {
@@ -84,13 +73,6 @@ func GetAudioMetadata(filePath string) (*AudioMetadata, error) {
 				sr, err := strconv.Atoi(stream.SampleRate)
 				if err == nil {
 					meta.SampleRate = sr
-				}
-			}
-			// Use stream bitrate if format bitrate is not available
-			if meta.Bitrate == 0 && stream.BitRate != "" {
-				bitrateBps, err := strconv.Atoi(stream.BitRate)
-				if err == nil {
-					meta.Bitrate = bitrateBps / 1000
 				}
 			}
 			break

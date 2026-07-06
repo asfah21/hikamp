@@ -19,7 +19,6 @@
                 <th>Category</th>
                 <th>Duration</th>
                 <th>File Size</th>
-                <th>Bitrate</th>
                 <th>Sample Rate</th>
                 <th>Actions</th>
             </tr>
@@ -49,13 +48,6 @@
                     {{end}}
                 </td>
                 <td>
-                    {{if .Bitrate}}
-                        {{.Bitrate}} kbps
-                    {{else}}
-                        -
-                    {{end}}
-                </td>
-                <td>
                     {{if .SampleRate}}
                         {{.SampleRate}} Hz
                     {{else}}
@@ -71,7 +63,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
+            <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
             {{end}}
         </tbody>
     </table>

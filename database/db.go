@@ -78,7 +78,6 @@ func createTables() {
 			category VARCHAR(50) DEFAULT 'Custom',
 			duration INTEGER DEFAULT 0,
 			file_size BIGINT DEFAULT 0,
-			bitrate INTEGER DEFAULT 0,
 			sample_rate INTEGER DEFAULT 0,
 			file_path VARCHAR(500),
 			device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
@@ -192,6 +191,9 @@ func createTables() {
 			DB.Exec("INSERT INTO prayer_broadcast_configs (prayer, volume, enabled) VALUES ($1, 50, false)", p)
 		}
 	}
+
+	// Migration: add sample_rate column to audio_files if it doesn't exist
+	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS sample_rate INTEGER DEFAULT 0`)
 
 	log.Println("Database tables initialized")
 }

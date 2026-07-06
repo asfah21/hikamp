@@ -8,7 +8,6 @@ type AudioFile struct {
 	Duration    int    `json:"duration"`     // in seconds
 	DurationStr string `json:"duration_str"` // formatted as mm:ss
 	FileSize    int64  `json:"file_size"`
-	Bitrate     int    `json:"bitrate"`     // in kbps
 	SampleRate  int    `json:"sample_rate"` // in Hz
 	FilePath    string `json:"file_path"`
 	DeviceID    *int   `json:"device_id"`

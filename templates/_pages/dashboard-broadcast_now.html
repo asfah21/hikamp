@@ -17,10 +17,10 @@
             </div>
             <div class="form-group">
                 <label class="form-label">Audio</label>
-                <select name="audio_id" class="input-field" required>
+                <select name="audio_id" id="audio-select" class="input-field" required onchange="setDurationFromAudio(this)">
                     <option value="">Select Audio</option>
                     {{range .Data.Audio}}
-                    <option value="{{.ID}}">{{.Name}}</option>
+                    <option value="{{.ID}}" data-duration="{{.Duration}}">{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                     {{end}}
                 </select>
             </div>
@@ -29,9 +29,63 @@
                 <input type="number" name="volume" class="input-field" min="0" max="100" value="50">
             </div>
             <div class="form-group">
-                <label class="form-label">Duration (minutes)</label>
-                <input type="number" name="duration" class="input-field" min="1" max="60" value="5">
-                <small style="color: var(--inkMuted); font-size: 12px;">How long the broadcast will play.</small>
+                <label class="form-label">Duration</label>
+                <div class="time-picker-row">
+                    <select name="duration_hours" id="duration-hours" class="input-field time-select">
+                        <option value="0">00</option>
+                        <option value="1">01</option>
+                        <option value="2">02</option>
+                        <option value="3">03</option>
+                        <option value="4">04</option>
+                        <option value="5">05</option>
+                        <option value="6">06</option>
+                        <option value="7">07</option>
+                        <option value="8">08</option>
+                        <option value="9">09</option>
+                        <option value="10">10</option>
+                        <option value="11">11</option>
+                        <option value="12">12</option>
+                    </select>
+                    <span class="time-sep">:</span>
+                    <select name="duration_minutes" id="duration-minutes" class="input-field time-select">
+                        <option value="0">00</option>
+                        <option value="1">01</option>
+                        <option value="2">02</option>
+                        <option value="3">03</option>
+                        <option value="4">04</option>
+                        <option value="5">05</option>
+                        <option value="6">06</option>
+                        <option value="7">07</option>
+                        <option value="8">08</option>
+                        <option value="9">09</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="25">25</option>
+                        <option value="30">30</option>
+                        <option value="35">35</option>
+                        <option value="40">40</option>
+                        <option value="45">45</option>
+                        <option value="50">50</option>
+                        <option value="55">55</option>
+                    </select>
+                    <span class="time-sep">:</span>
+                    <select name="duration_seconds" id="duration-seconds" class="input-field time-select">
+                        <option value="0">00</option>
+                        <option value="5">05</option>
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="20">20</option>
+                        <option value="25">25</option>
+                        <option value="30">30</option>
+                        <option value="35">35</option>
+                        <option value="40">40</option>
+                        <option value="45">45</option>
+                        <option value="50">50</option>
+                        <option value="55">55</option>
+                    </select>
+                </div>
+                <small style="color: var(--inkMuted); font-size: 12px;">Duration auto-fills from selected audio. Adjust as needed.</small>
             </div>
             <div class="dashboard-panel-footer">
                 <button type="submit" class="btn btn-primary" style="background: var(--error); border-color: var(--error);">
@@ -42,4 +96,19 @@
         </form>
     </div>
 </div>
+
+<script>
+function setDurationFromAudio(select) {
+    const option = select.options[select.selectedIndex];
+    const durationSec = parseInt(option.getAttribute('data-duration')) || 0;
+    if (durationSec > 0) {
+        const hours = Math.floor(durationSec / 3600);
+        const minutes = Math.floor((durationSec % 3600) / 60);
+        const seconds = durationSec % 60;
+        document.getElementById('duration-hours').value = hours;
+        document.getElementById('duration-minutes').value = minutes;
+        document.getElementById('duration-seconds').value = seconds;
+    }
+}
+</script>
 {{end}}
