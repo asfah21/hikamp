@@ -296,9 +296,13 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Read actual audio duration from the saved file
+		duration, _ := services.GetAudioDuration(filePath)
+
 		audioFile := &models.AudioFile{
 			Name:     header.Filename,
 			Category: category,
+			Duration: duration,
 			FileSize: header.Size,
 			FilePath: filePath,
 		}
@@ -591,9 +595,32 @@ func AdminPrayerBroadcast(w http.ResponseWriter, r *http.Request) {
 	devices, _ := services.GetAllDevices()
 	audioFiles, _ := services.GetAllAudioFiles()
 
+	// Ensure we always have 5 configs (one per prayer) to avoid template index out of range errors
+	prayerOrder := []string{"fajr", "dhuhr", "asr", "maghrib", "isha"}
+	configMap := make(map[string]*models.PrayerBroadcastConfig)
+	for i := range broadcastConfigs {
+		configMap[broadcastConfigs[i].Prayer] = &broadcastConfigs[i]
+	}
+
+	// Build a slice of exactly 5 configs in the correct order, filling defaults for missing ones
+	fullConfigs := make([]models.PrayerBroadcastConfig, 0, 5)
+	for _, prayer := range prayerOrder {
+		if cfg, ok := configMap[prayer]; ok {
+			fullConfigs = append(fullConfigs, *cfg)
+		} else {
+			fullConfigs = append(fullConfigs, models.PrayerBroadcastConfig{
+				Prayer:   prayer,
+				AudioID:  0,
+				DeviceID: 0,
+				Volume:   50,
+				Enabled:  false,
+			})
+		}
+	}
+
 	data := map[string]interface{}{
 		"Location":         location,
-		"BroadcastConfigs": broadcastConfigs,
+		"BroadcastConfigs": fullConfigs,
 		"Devices":          devices,
 		"Audio":            audioFiles,
 	}

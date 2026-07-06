@@ -1,11 +1,11 @@
 {{define "content"}}
-<div class="modal-overlay" x-data>
+<div class="modal-overlay" x-data="scheduleForm()">
     <div class="modal-content" style="max-width: 600px;">
         <div class="modal-header">
             <h3>{{if .Data.Schedule}}Edit Schedule{{else}}Add Schedule{{end}}</h3>
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
-        <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML">
+        <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML" {{if .Data.Schedule}}data-begin-time="{{.Data.Schedule.BeginTime}}" data-end-time="{{.Data.Schedule.EndTime}}" data-audio-id="{{.Data.Schedule.AudioID}}"{{end}}>
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Schedule Name</label>
@@ -14,10 +14,10 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Audio</label>
-                        <select name="audio_id" class="input-field" required>
+                        <select name="audio_id" class="input-field" x-model="audioId" @change="onAudioChange()" required>
                             <option value="">Select Audio</option>
                             {{range .Data.Audio}}
-                            <option value="{{.ID}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.AudioID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
+                            <option value="{{.ID}}" data-duration="{{.Duration}}" {{if $.Data.Schedule}}{{if eq $.Data.Schedule.AudioID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
                             {{end}}
                         </select>
                     </div>
@@ -42,11 +42,69 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label class="form-label">Begin Time</label>
-                        <input type="text" name="begin_time" class="input-field" placeholder="12:02:00+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.BeginTime}}{{end}}" required>
+                        <div class="time-picker-row">
+                            <select name="begin_hour" class="input-field time-select" x-model="beginHour">
+                                {{range $h := seq 24}}<option value="{{printf "%02d" $h}}">{{printf "%02d" $h}}</option>{{end}}
+                            </select>
+                            <span class="time-sep">:</span>
+                            <select name="begin_minute" class="input-field time-select" x-model="beginMinute">
+                                {{range $m := seq 60}}<option value="{{printf "%02d" $m}}">{{printf "%02d" $m}}</option>{{end}}
+                            </select>
+                            <span class="time-sep">:</span>
+                            <select name="begin_second" class="input-field time-select" x-model="beginSecond">
+                                {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
+                            </select>
+                            <select name="begin_tz" class="input-field time-tz-select" x-model="beginTz">
+                                <option value="+08:00">+08:00</option>
+                                <option value="+07:00">+07:00</option>
+                                <option value="+09:00">+09:00</option>
+                                <option value="+05:30">+05:30</option>
+                                <option value="+06:30">+06:30</option>
+                                <option value="+00:00">+00:00</option>
+                            </select>
+                            <input type="hidden" name="begin_time" x-bind:value="beginTimeValue">
+                        </div>
+                        <div class="time-picker-actions">
+                            <button type="button" class="btn btn-sm btn-secondary" @click="setBeginToNow()" title="Set to current time">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                Now
+                            </button>
+                            <button type="button" class="btn btn-sm btn-secondary" @click="autoFillFromAudio()" title="Set begin time based on audio duration">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                Auto from Audio
+                            </button>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">End Time</label>
-                        <input type="text" name="end_time" class="input-field" placeholder="12:05:51+08:00" value="{{if .Data.Schedule}}{{.Data.Schedule.EndTime}}{{end}}" required>
+                        <div class="time-picker-row">
+                            <select name="end_hour" class="input-field time-select" x-model="endHour">
+                                {{range $h := seq 24}}<option value="{{printf "%02d" $h}}">{{printf "%02d" $h}}</option>{{end}}
+                            </select>
+                            <span class="time-sep">:</span>
+                            <select name="end_minute" class="input-field time-select" x-model="endMinute">
+                                {{range $m := seq 60}}<option value="{{printf "%02d" $m}}">{{printf "%02d" $m}}</option>{{end}}
+                            </select>
+                            <span class="time-sep">:</span>
+                            <select name="end_second" class="input-field time-select" x-model="endSecond">
+                                {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
+                            </select>
+                            <select name="end_tz" class="input-field time-tz-select" x-model="endTz">
+                                <option value="+08:00">+08:00</option>
+                                <option value="+07:00">+07:00</option>
+                                <option value="+09:00">+09:00</option>
+                                <option value="+05:30">+05:30</option>
+                                <option value="+06:30">+06:30</option>
+                                <option value="+00:00">+00:00</option>
+                            </select>
+                            <input type="hidden" name="end_time" x-bind:value="endTimeValue">
+                        </div>
+                        <div class="time-picker-actions">
+                            <button type="button" class="btn btn-sm btn-secondary" @click="setEndToBeginPlusDuration()" title="Set end time = begin time + audio duration">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                Auto from Begin
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -67,4 +125,115 @@
         </form>
     </div>
 </div>
+
+<script>
+function scheduleForm() {
+    // Parse existing time values if editing
+    var initialBegin = { h: '12', m: '00', s: '00', tz: '+08:00' };
+    var initialEnd   = { h: '12', m: '05', s: '00', tz: '+08:00' };
+
+    // Extract begin/end time from data attributes if editing
+    var el = document.querySelector('[data-begin-time]');
+    if (el) {
+        var beginMatch = el.getAttribute('data-begin-time').match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})$/);
+        if (beginMatch) {
+            initialBegin = { h: beginMatch[1], m: beginMatch[2], s: beginMatch[3], tz: beginMatch[4] };
+        }
+        var endMatch = el.getAttribute('data-end-time').match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})$/);
+        if (endMatch) {
+            initialEnd = { h: endMatch[1], m: endMatch[2], s: endMatch[3], tz: endMatch[4] };
+        }
+    }
+
+    // Get audio ID from data attribute if editing
+    var initialAudioId = el ? el.getAttribute('data-audio-id') : '';
+
+    return {
+        audioId: initialAudioId,
+        beginHour: initialBegin.h,
+        beginMinute: initialBegin.m,
+        beginSecond: initialBegin.s,
+        beginTz: initialBegin.tz,
+        endHour: initialEnd.h,
+        endMinute: initialEnd.m,
+        endSecond: initialEnd.s,
+        endTz: initialEnd.tz,
+
+        beginTimeValue: function() {
+            return this.beginHour + ':' + this.beginMinute + ':' + this.beginSecond + this.beginTz;
+        },
+        endTimeValue: function() {
+            return this.endHour + ':' + this.endMinute + ':' + this.endSecond + this.endTz;
+        },
+
+        pad: function(n) {
+            return String(n).padStart(2, '0');
+        },
+
+        // Get duration of selected audio in seconds
+        getSelectedAudioDuration: function() {
+            var sel = document.querySelector('select[name="audio_id"]');
+            if (!sel || !sel.value) return 0;
+            var opt = sel.options[sel.selectedIndex];
+            return parseInt(opt.getAttribute('data-duration')) || 0;
+        },
+
+        // When audio selection changes, auto-fill end time
+        onAudioChange: function() {
+            this.autoFillFromAudio();
+        },
+
+        // Set begin time to current local time
+        setBeginToNow: function() {
+            var now = new Date();
+            this.beginHour = this.pad(now.getHours());
+            this.beginMinute = this.pad(now.getMinutes());
+            this.beginSecond = this.pad(now.getSeconds());
+        },
+
+        // Auto-fill begin time suggestion based on audio duration
+        autoFillFromAudio: function() {
+            var dur = this.getSelectedAudioDuration();
+            if (dur <= 0) return;
+            // Suggest begin time as "now" rounded to nearest minute
+            var now = new Date();
+            this.beginHour = this.pad(now.getHours());
+            this.beginMinute = this.pad(now.getMinutes());
+            this.beginSecond = '00';
+            // Auto-calculate end time
+            this.calcEndFromBegin(dur);
+        },
+
+        // Calculate end time = begin time + duration seconds
+        calcEndFromBegin: function(dur) {
+            var h = parseInt(this.beginHour);
+            var m = parseInt(this.beginMinute);
+            var s = parseInt(this.beginSecond);
+
+            var totalSec = h * 3600 + m * 60 + s + dur;
+            // Wrap around 24h
+            totalSec = totalSec % 86400;
+
+            var newH = Math.floor(totalSec / 3600);
+            var rem = totalSec % 3600;
+            var newM = Math.floor(rem / 60);
+            var newS = rem % 60;
+
+            this.endHour = this.pad(newH);
+            this.endMinute = this.pad(newM);
+            this.endSecond = this.pad(newS);
+        },
+
+        // Set end time = begin time + audio duration
+        setEndToBeginPlusDuration: function() {
+            var dur = this.getSelectedAudioDuration();
+            if (dur <= 0) {
+                // If no audio selected, just copy begin time + 5 min default
+                dur = 300;
+            }
+            this.calcEndFromBegin(dur);
+        }
+    };
+}
+</script>
 {{end}}

@@ -969,6 +969,62 @@ select.input-field {
 }
 
 /* ============================================================
+   TIME PICKER
+   ============================================================ */
+.time-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.time-select {
+  width: 70px;
+  min-width: 70px;
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+  background-image: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-align-last: center;
+}
+
+.time-tz-select {
+  width: 85px;
+  min-width: 85px;
+  text-align: center;
+  font-size: 12px;
+  padding-left: 4px;
+  padding-right: 4px;
+  background-image: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-align-last: center;
+}
+
+.time-sep {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0 2px;
+  line-height: 1;
+  margin-top: -4px;
+}
+
+.time-picker-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.time-picker-actions .btn-sm {
+  font-size: 12px;
+  padding: 4px 10px;
+}
+
+/* ============================================================
    MAP PICKER
    ============================================================ */
 .map-picker-container {

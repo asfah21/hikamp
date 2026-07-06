@@ -2,65 +2,58 @@
 {{$location := .Data.Location}}
 {{$prayerTimes := .Data.PrayerTimes}}
 
-<div class="section-heading-left">
-    <h2>Prayer Times</h2>
-    <p>Prayer times are calculated based on your location settings.</p>
+<div class="page-header">
+    <div>
+        <h2>Prayer Times</h2>
+        <p style="color: var(--inkMuted); font-size: 14px; margin-top: 4px;">Prayer times are calculated based on your location settings.</p>
+    </div>
+    {{if $location}}
+    <div>
+        <form hx-post="/admin/prayer/generate" hx-target="#main-content" hx-swap="innerHTML" style="display: flex; gap: 0.5rem; align-items: center;">
+            <input type="number" name="days" value="30" min="1" max="365" class="input-field" style="width: 80px; padding: 0.4rem;" placeholder="Days">
+            <button type="submit" class="btn btn-sm btn-secondary">Generate</button>
+        </form>
+    </div>
+    {{end}}
 </div>
 
 {{if $location}}
-<div class="dashboard-panel" style="margin-top: 1rem;">
-    <div class="dashboard-panel-header">
-        <h3>Upcoming Prayer Times (7 Days)</h3>
-        <div style="display: flex; gap: 0.5rem; align-items: center;">
-            <form hx-post="/admin/prayer/generate" hx-target="#main-content" hx-swap="innerHTML" style="display: flex; gap: 0.5rem; align-items: center;">
-                <input type="number" name="days" value="30" min="1" max="365" class="input-field" style="width: 80px; padding: 0.4rem;" placeholder="Days">
-                <button type="submit" class="btn btn-sm btn-secondary">Generate</button>
-            </form>
-        </div>
-    </div>
-    <div class="dashboard-panel-body" style="padding: 0;">
-        {{if $prayerTimes}}
-        <div class="table-container">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Fajr</th>
-                        <th>Dhuhr</th>
-                        <th>Asr</th>
-                        <th>Maghrib</th>
-                        <th>Isha</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{range $prayerTimes}}
-                    <tr>
-                        <td>{{.Date}}</td>
-                        <td><span class="badge badge-primary">{{.Fajr}}</span></td>
-                        <td>{{.Dhuhr}}</td>
-                        <td>{{.Asr}}</td>
-                        <td><span class="badge badge-warning">{{.Maghrib}}</span></td>
-                        <td>{{.Isha}}</td>
-                    </tr>
-                    {{end}}
-                </tbody>
-            </table>
-        </div>
-        {{else}}
-        <div style="padding: 2rem; text-align: center; color: var(--inkMuted);">
-            <p>No prayer times generated yet. Click "Generate" to create prayer times for the next 30 days.</p>
-        </div>
-        {{end}}
-    </div>
+<div class="table-container">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Fajr</th>
+                <th>Dhuhr</th>
+                <th>Asr</th>
+                <th>Maghrib</th>
+                <th>Isha</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $prayerTimes}}
+            <tr>
+                <td><strong>{{.Date}}</strong></td>
+                <td><span class="badge badge-primary">{{.Fajr}}</span></td>
+                <td>{{.Dhuhr}}</td>
+                <td>{{.Asr}}</td>
+                <td><span class="badge badge-warning">{{.Maghrib}}</span></td>
+                <td>{{.Isha}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No prayer times generated yet. Click "Generate" to create prayer times for the next 30 days.</td></tr>
+            {{end}}
+        </tbody>
+    </table>
 </div>
 {{else}}
-<div class="dashboard-panel" style="margin-top: 1rem;">
-    <div class="dashboard-panel-body" style="padding: 2rem; text-align: center; color: var(--inkMuted);">
+<div class="dashboard-panel" style="max-width: 500px; margin: 2rem auto; text-align: center;">
+    <div class="dashboard-panel-body" style="padding: 3rem;">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
         </svg>
-        <p>Please set your location first in <a href="/admin/prayer/setting" class="link">Prayer Settings</a>.</p>
+        <p style="color: var(--inkMuted);">Please set your location first in <a href="/admin/prayer/setting" class="link">Prayer Settings</a>.</p>
     </div>
 </div>
 {{end}}

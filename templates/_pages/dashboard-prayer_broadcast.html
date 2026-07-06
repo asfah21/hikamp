@@ -4,196 +4,201 @@
 {{$devices := .Data.Devices}}
 {{$audio := .Data.Audio}}
 
-<div class="section-heading-left">
-    <h2>Prayer Broadcast Settings</h2>
-    <p>Configure which audio to play for each prayer time and which device to broadcast to.</p>
+<div class="page-header">
+    <div>
+        <h2>Prayer Broadcast Settings</h2>
+        <p style="color: var(--inkMuted); font-size: 14px; margin-top: 4px;">Configure which audio to play for each prayer time and which device to broadcast to.</p>
+    </div>
 </div>
 
 {{if $location}}
-<div class="dashboard-panel" style="margin-top: 1rem;">
-    <div class="dashboard-panel-body">
-        <form hx-post="/admin/prayer/broadcast/save" hx-target="#main-content" hx-swap="innerHTML">
-            <div class="table-container">
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Prayer</th>
-                            <th>Audio</th>
-                            <th>Device</th>
-                            <th>Volume</th>
-                            <th>Enabled</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {{$configs := $broadcastConfigs}}
-                        {{$cfg0 := index $configs 0}}
-                        {{$cfg1 := index $configs 1}}
-                        {{$cfg2 := index $configs 2}}
-                        {{$cfg3 := index $configs 3}}
-                        {{$cfg4 := index $configs 4}}
-                        <tr>
-                            <td><strong>Fajr</strong></td>
-                            <td>
-                                <select name="audio_fajr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Audio --</option>
-                                    {{range $audio}}
-                                    <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="device_fajr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Device --</option>
-                                    {{range $devices}}
-                                    <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="volume_fajr" value="{{if $cfg0}}{{$cfg0.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
-                            </td>
-                            <td>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" name="enabled_fajr" {{if $cfg0}}{{if $cfg0.Enabled}}checked{{end}}{{end}}>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Dhuhr</strong></td>
-                            <td>
-                                <select name="audio_dhuhr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Audio --</option>
-                                    {{range $audio}}
-                                    <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="device_dhuhr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Device --</option>
-                                    {{range $devices}}
-                                    <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="volume_dhuhr" value="{{if $cfg1}}{{$cfg1.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
-                            </td>
-                            <td>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" name="enabled_dhuhr" {{if $cfg1}}{{if $cfg1.Enabled}}checked{{end}}{{end}}>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Asr</strong></td>
-                            <td>
-                                <select name="audio_asr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Audio --</option>
-                                    {{range $audio}}
-                                    <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="device_asr" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Device --</option>
-                                    {{range $devices}}
-                                    <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="volume_asr" value="{{if $cfg2}}{{$cfg2.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
-                            </td>
-                            <td>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" name="enabled_asr" {{if $cfg2}}{{if $cfg2.Enabled}}checked{{end}}{{end}}>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Maghrib</strong></td>
-                            <td>
-                                <select name="audio_maghrib" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Audio --</option>
-                                    {{range $audio}}
-                                    <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="device_maghrib" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Device --</option>
-                                    {{range $devices}}
-                                    <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="volume_maghrib" value="{{if $cfg3}}{{$cfg3.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
-                            </td>
-                            <td>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" name="enabled_maghrib" {{if $cfg3}}{{if $cfg3.Enabled}}checked{{end}}{{end}}>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td><strong>Isha</strong></td>
-                            <td>
-                                <select name="audio_isha" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Audio --</option>
-                                    {{range $audio}}
-                                    <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <select name="device_isha" class="input-field" style="min-width: 150px;">
-                                    <option value="0">-- Select Device --</option>
-                                    {{range $devices}}
-                                    <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
-                                    {{end}}
-                                </select>
-                            </td>
-                            <td>
-                                <input type="number" name="volume_isha" value="{{if $cfg4}}{{$cfg4.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
-                            </td>
-                            <td>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" name="enabled_isha" {{if $cfg4}}{{if $cfg4.Enabled}}checked{{end}}{{end}}>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="dashboard-panel-footer" style="display: flex; justify-content: space-between; align-items: center;">
-                <button type="submit" class="btn btn-primary">Save Broadcast Settings</button>
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('create-schedules-form').submit();">Create Schedules from Prayer Times</button>
-            </div>
-        </form>
-
-        <!-- Hidden form for creating schedules -->
-        <form id="create-schedules-form" hx-post="/admin/prayer/create-schedules" hx-target="#main-content" hx-swap="innerHTML" style="display: none;">
-            <input type="number" name="days" value="30" min="1" max="365">
-        </form>
+<div class="dashboard-panel">
+    <div class="dashboard-panel-header">
+        <h3>Broadcast Configuration</h3>
+        <p>Assign audio and device for each prayer time.</p>
     </div>
+    <form hx-post="/admin/prayer/broadcast/save" hx-target="#main-content" hx-swap="innerHTML">
+        <div class="table-container" style="border: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Prayer</th>
+                        <th>Audio</th>
+                        <th>Device</th>
+                        <th style="width: 80px;">Volume</th>
+                        <th style="width: 80px;">Enabled</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{$configs := $broadcastConfigs}}
+                    {{$cfg0 := index $configs 0}}
+                    {{$cfg1 := index $configs 1}}
+                    {{$cfg2 := index $configs 2}}
+                    {{$cfg3 := index $configs 3}}
+                    {{$cfg4 := index $configs 4}}
+                    <tr>
+                        <td><strong>Fajr</strong></td>
+                        <td>
+                            <select name="audio_fajr" class="input-field">
+                                <option value="0">-- Select Audio --</option>
+                                {{range $audio}}
+                                <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="device_fajr" class="input-field">
+                                <option value="0">-- Select Device --</option>
+                                {{range $devices}}
+                                <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="volume_fajr" value="{{if $cfg0}}{{$cfg0.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="enabled_fajr" {{if $cfg0}}{{if $cfg0.Enabled}}checked{{end}}{{end}}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Dhuhr</strong></td>
+                        <td>
+                            <select name="audio_dhuhr" class="input-field">
+                                <option value="0">-- Select Audio --</option>
+                                {{range $audio}}
+                                <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="device_dhuhr" class="input-field">
+                                <option value="0">-- Select Device --</option>
+                                {{range $devices}}
+                                <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="volume_dhuhr" value="{{if $cfg1}}{{$cfg1.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="enabled_dhuhr" {{if $cfg1}}{{if $cfg1.Enabled}}checked{{end}}{{end}}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Asr</strong></td>
+                        <td>
+                            <select name="audio_asr" class="input-field">
+                                <option value="0">-- Select Audio --</option>
+                                {{range $audio}}
+                                <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="device_asr" class="input-field">
+                                <option value="0">-- Select Device --</option>
+                                {{range $devices}}
+                                <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="volume_asr" value="{{if $cfg2}}{{$cfg2.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="enabled_asr" {{if $cfg2}}{{if $cfg2.Enabled}}checked{{end}}{{end}}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Maghrib</strong></td>
+                        <td>
+                            <select name="audio_maghrib" class="input-field">
+                                <option value="0">-- Select Audio --</option>
+                                {{range $audio}}
+                                <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="device_maghrib" class="input-field">
+                                <option value="0">-- Select Device --</option>
+                                {{range $devices}}
+                                <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="volume_maghrib" value="{{if $cfg3}}{{$cfg3.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="enabled_maghrib" {{if $cfg3}}{{if $cfg3.Enabled}}checked{{end}}{{end}}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Isha</strong></td>
+                        <td>
+                            <select name="audio_isha" class="input-field">
+                                <option value="0">-- Select Audio --</option>
+                                {{range $audio}}
+                                <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <select name="device_isha" class="input-field">
+                                <option value="0">-- Select Device --</option>
+                                {{range $devices}}
+                                <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="number" name="volume_isha" value="{{if $cfg4}}{{$cfg4.Volume}}{{else}}50{{end}}" min="0" max="100" class="input-field" style="width: 70px;">
+                        </td>
+                        <td style="text-align: center;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" name="enabled_isha" {{if $cfg4}}{{if $cfg4.Enabled}}checked{{end}}{{end}}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="dashboard-panel-footer" style="justify-content: space-between;">
+            <button type="button" class="btn btn-secondary" hx-post="/admin/prayer/create-schedules" hx-target="#main-content" hx-swap="innerHTML" hx-vals='{"days": "30"}'>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Create Schedules from Prayer Times
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Save Broadcast Settings
+            </button>
+        </div>
+    </form>
 </div>
 {{else}}
-<div class="dashboard-panel" style="margin-top: 1rem;">
-    <div class="dashboard-panel-body" style="padding: 2rem; text-align: center; color: var(--inkMuted);">
+<div class="dashboard-panel" style="max-width: 500px; margin: 2rem auto; text-align: center;">
+    <div class="dashboard-panel-body" style="padding: 3rem;">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom: 1rem; opacity: 0.4;">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
         </svg>
-        <p>Please set your location first in <a href="/admin/prayer/setting" class="link">Prayer Settings</a>.</p>
+        <p style="color: var(--inkMuted);">Please set your location first in <a href="/admin/prayer/setting" class="link">Prayer Settings</a>.</p>
     </div>
 </div>
 {{end}}

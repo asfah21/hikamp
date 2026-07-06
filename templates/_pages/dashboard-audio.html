@@ -27,8 +27,23 @@
             <tr>
                 <td><strong>{{.Name}}</strong></td>
                 <td><span class="badge badge-neutral">{{.Category}}</span></td>
-                <td>{{.Duration}}s</td>
-                <td>{{.FileSize}} bytes</td>
+                <td>
+                    {{if .Duration}}
+                        {{$m := div .Duration 60}}{{$s := mod .Duration 60}}
+                        {{$m}}m {{$s}}s
+                    {{else}}
+                        -
+                    {{end}}
+                </td>
+                <td>
+                    {{if ge .FileSize 1048576}}
+                        {{div .FileSize 1048576}} MB
+                    {{else if ge .FileSize 1024}}
+                        {{div .FileSize 1024}} KB
+                    {{else}}
+                        {{.FileSize}} bytes
+                    {{end}}
+                </td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-ghost" hx-delete="/admin/audio/delete/{{.ID}}" hx-confirm="Delete this audio file?" hx-trigger="click" title="Delete" style="color: var(--error);">
