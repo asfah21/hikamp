@@ -78,6 +78,8 @@ func createTables() {
 			category VARCHAR(50) DEFAULT 'Custom',
 			duration INTEGER DEFAULT 0,
 			file_size BIGINT DEFAULT 0,
+			bitrate INTEGER DEFAULT 0,
+			sample_rate INTEGER DEFAULT 0,
 			file_path VARCHAR(500),
 			device_id INTEGER REFERENCES devices(id) ON DELETE SET NULL,
 			created_at TIMESTAMP DEFAULT NOW(),

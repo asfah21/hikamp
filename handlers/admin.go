@@ -296,15 +296,33 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Read actual audio duration from the saved file
-		duration, _ := services.GetAudioDuration(filePath)
+		// Read audio metadata using ffprobe (duration, bitrate, sample rate)
+		meta, _ := services.GetAudioMetadata(filePath)
+		duration := 0
+		durationStr := ""
+		bitrate := 0
+		sampleRate := 0
+		if meta != nil {
+			duration = meta.Duration
+			durationStr = meta.DurationStr
+			bitrate = meta.Bitrate
+			sampleRate = meta.SampleRate
+		}
+
+		// Fallback if ffprobe is not available
+		if duration == 0 {
+			duration, _ = services.GetAudioDuration(filePath)
+		}
 
 		audioFile := &models.AudioFile{
-			Name:     header.Filename,
-			Category: category,
-			Duration: duration,
-			FileSize: header.Size,
-			FilePath: filePath,
+			Name:        header.Filename,
+			Category:    category,
+			Duration:    duration,
+			DurationStr: durationStr,
+			FileSize:    header.Size,
+			Bitrate:     bitrate,
+			SampleRate:  sampleRate,
+			FilePath:    filePath,
 		}
 
 		_, err = services.CreateAudioFile(audioFile)

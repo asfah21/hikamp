@@ -69,11 +69,20 @@ func Init() {
 				}
 				return a / b
 			},
+			"divInt64": func(a, b int64) int64 {
+				if b == 0 {
+					return 0
+				}
+				return a / b
+			},
 			"mod": func(a, b int) int {
 				if b == 0 {
 					return 0
 				}
 				return a % b
+			},
+			"geInt64": func(a, b int64) bool {
+				return a >= b
 			},
 		},
 	}

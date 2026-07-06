@@ -19,6 +19,8 @@
                 <th>Category</th>
                 <th>Duration</th>
                 <th>File Size</th>
+                <th>Bitrate</th>
+                <th>Sample Rate</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -28,7 +30,9 @@
                 <td><strong>{{.Name}}</strong></td>
                 <td><span class="badge badge-neutral">{{.Category}}</span></td>
                 <td>
-                    {{if .Duration}}
+                    {{if .DurationStr}}
+                        {{.DurationStr}}
+                    {{else if .Duration}}
                         {{$m := div .Duration 60}}{{$s := mod .Duration 60}}
                         {{$m}}m {{$s}}s
                     {{else}}
@@ -36,12 +40,26 @@
                     {{end}}
                 </td>
                 <td>
-                    {{if ge .FileSize 1048576}}
-                        {{div .FileSize 1048576}} MB
-                    {{else if ge .FileSize 1024}}
-                        {{div .FileSize 1024}} KB
+                    {{if geInt64 .FileSize 1048576}}
+                        {{divInt64 .FileSize 1048576}} MB
+                    {{else if geInt64 .FileSize 1024}}
+                        {{divInt64 .FileSize 1024}} KB
                     {{else}}
                         {{.FileSize}} bytes
+                    {{end}}
+                </td>
+                <td>
+                    {{if .Bitrate}}
+                        {{.Bitrate}} kbps
+                    {{else}}
+                        -
+                    {{end}}
+                </td>
+                <td>
+                    {{if .SampleRate}}
+                        {{.SampleRate}} Hz
+                    {{else}}
+                        -
                     {{end}}
                 </td>
                 <td>
@@ -53,7 +71,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
+            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
             {{end}}
         </tbody>
     </table>
