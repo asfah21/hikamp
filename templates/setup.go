@@ -63,6 +63,18 @@ func Init() {
 			},
 			"lower": strings.ToLower,
 			"upper": strings.ToUpper,
+			"div": func(a, b int) int {
+				if b == 0 {
+					return 0
+				}
+				return a / b
+			},
+			"mod": func(a, b int) int {
+				if b == 0 {
+					return 0
+				}
+				return a % b
+			},
 		},
 	}
 
