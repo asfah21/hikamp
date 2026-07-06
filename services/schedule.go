@@ -76,7 +76,8 @@ func SyncScheduleToDevice(scheduleID int) error {
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 	// Get timezone offset from location settings
-	timezoneOffset := "+08:00" // default fallback
+	// Note: getTimezoneOffset returns WITHOUT "+" prefix (Web UI format: "08:00")
+	timezoneOffset := "08:00" // default fallback
 	location, err := repositories.GetPrayerLocation()
 	if err == nil && location.Timezone != "" {
 		timezoneOffset = getTimezoneOffset(location.Timezone)
@@ -119,18 +120,23 @@ func SyncScheduleToDevice(scheduleID int) error {
 	return nil
 }
 
-// getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "+07:00")
+// getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "08:00").
+// Note: Returns WITHOUT the +/- sign prefix because Hikvision Web UI uses space separator format:
+// "HH:MM:SS HH:MM" (e.g., "12:02:00 08:00") — the sign is implied by the value.
+// For negative offsets, the sign IS included (e.g., "-05:00").
 func getTimezoneOffset(tzName string) string {
 	loc, err := time.LoadLocation(tzName)
 	if err != nil {
-		return "+08:00"
+		return "08:00"
 	}
 	_, offset := time.Now().In(loc).Zone()
 	hours := offset / 3600
 	mins := (offset % 3600) / 60
 	if hours >= 0 {
-		return fmt.Sprintf("+%02d:%02d", hours, mins)
+		// Positive offset: return without "+" prefix (Web UI format: "08:00")
+		return fmt.Sprintf("%02d:%02d", hours, mins)
 	}
+	// Negative offset: include "-" prefix
 	return fmt.Sprintf("-%02d:%02d", -hours, mins)
 }
 
@@ -181,10 +187,11 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
 
 	// Hikvision Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
-	// (with time component, not date-only)
+	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00" for UTC+8), NOT the current time.
+	// Example from Web UI: "startTime": "2026-07-06 08:00"
 	now := time.Now()
-	today := now.Format("2006-01-02 15:04")
-	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02 15:04")
+	today := now.Format("2006-01-02") + " " + timezoneOffset
+	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + " " + timezoneOffset
 
 	// Build schedule list entry
 	scheduleEntry := map[string]interface{}{

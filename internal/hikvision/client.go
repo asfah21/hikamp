@@ -325,9 +325,9 @@ func (c *Client) DeleteAudio(audioID int) error {
 // BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
 // Creates a temporary schedule that starts now and ends after the specified duration.
 // Uses the verified payload structure from the official Hikvision Web UI.
-// Uses default +08:00 timezone.
+// Uses default 08:00 timezone (without "+" prefix, matching Web UI format).
 func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) error {
-	return c.BroadcastNowWithTimezone(audioID, volume, durationMinutes, "+08:00")
+	return c.BroadcastNowWithTimezone(audioID, volume, durationMinutes, "08:00")
 }
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
@@ -344,7 +344,8 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	beginTime := now.Format("15:04:05") + " " + timezoneOffset
 	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + " " + timezoneOffset
 	// Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
-	dateStr := now.Format("2006-01-02 15:04")
+	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
+	dateStr := now.Format("2006-01-02") + " " + timezoneOffset
 
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
