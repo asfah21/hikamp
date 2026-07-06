@@ -144,16 +144,18 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
 
-	// Use today's date and a far future date for startTime/stopTime in dailyScheduleInfo
+	// Use today's date and a near future date for startTime/stopTime in dailyScheduleInfo
 	// Format: YYYY-MM-DD (date only, not time)
+	// stopTime is set to 7 days from now to match the verified working payload pattern
 	today := time.Now().Format("2006-01-02")
-	futureDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
+	futureDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
 
 	// Build schedule list entry
 	scheduleEntry := map[string]interface{}{
-		"beginTime": beginTime,
-		"endTime":   endTime,
-		"playMode":  "order",
+		"beginTime":   beginTime,
+		"endTime":     endTime,
+		"playNowTime": "",
+		"playMode":    "order",
 		"operation": map[string]interface{}{
 			"audioSource":   "customAudio",
 			"customAudioID": []int{s.AudioID},
