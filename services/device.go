@@ -63,5 +63,13 @@ func SyncDeviceInfo(id int) error {
 // BroadcastToDevice sends a broadcast command to a Hikvision device
 func BroadcastToDevice(device *models.Device, audioID int, volume int, durationMinutes int) error {
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
-	return client.BroadcastNow(audioID, volume, durationMinutes)
+
+	// Get timezone offset from location settings for proper time formatting
+	timezoneOffset := "+08:00" // default fallback
+	location, err := repositories.GetPrayerLocation()
+	if err == nil && location.Timezone != "" {
+		timezoneOffset = getTimezoneOffset(location.Timezone)
+	}
+
+	return client.BroadcastNowWithTimezone(audioID, volume, durationMinutes, timezoneOffset)
 }

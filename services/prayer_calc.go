@@ -48,14 +48,20 @@ func CalculatePrayerTimes(date time.Time, latitude, longitude float64, timezone 
 	// Use the date at the given timezone
 	year, month, day := date.In(loc).Date()
 
+	// Calculate timezone offset from UTC in hours
+	_, offsetSec := date.In(loc).Zone()
+	timezoneOffset := float64(offsetSec) / 3600.0
+
 	// Calculate Julian Day
 	jd := julianDay(year, int(month), day)
 
 	// Calculate sun position
 	declination, equation := sunPosition(jd)
 
-	// Calculate Dhuhr (zenith)
-	dhuhr := 12.0 + equation - longitude/15.0
+	// Calculate Dhuhr (zenith) - result is in UTC decimal hours
+	dhuhrUTC := 12.0 + equation - longitude/15.0
+	// Convert to local time by adding timezone offset
+	dhuhr := dhuhrUTC + timezoneOffset
 
 	// Get method config
 	config := methodConfigs[method]
@@ -64,19 +70,24 @@ func CalculatePrayerTimes(date time.Time, latitude, longitude float64, timezone 
 	}
 
 	// Calculate prayer times in degrees
-	fajrDeg := dhuhr - hourAngle(declination, latitude, config.FajrAngle+90)/15.0
-	sunriseDeg := dhuhr - hourAngle(declination, latitude, 90.833)/15.0 // 0.833 for atmospheric refraction
+	// Fajr: sun is at -FajrAngle degrees below the horizon
+	fajrDeg := dhuhr - hourAngle(declination, latitude, -config.FajrAngle)/15.0
+	// Sunrise: sun is at -0.833° (accounting for atmospheric refraction)
+	sunriseDeg := dhuhr - hourAngle(declination, latitude, -0.833)/15.0
 	dhuhrDeg := dhuhr
+	// Asr: based on shadow length
 	asrDeg := dhuhr + hourAngle(declination, latitude, asrAngle(declination, latitude, false))/15.0
 	asrHanafiDeg := dhuhr + hourAngle(declination, latitude, asrAngle(declination, latitude, true))/15.0
-	maghribDeg := dhuhr + hourAngle(declination, latitude, 90.833)/15.0
+	// Maghrib: sunset (sun at -0.833°)
+	maghribDeg := dhuhr + hourAngle(declination, latitude, -0.833)/15.0
 
 	var ishaDeg float64
 	if config.IshaMethod == "fixed" {
 		// Fixed Isha (e.g., 90 minutes after Maghrib)
 		ishaDeg = maghribDeg + 1.5 // 90 minutes = 1.5 hours
 	} else {
-		ishaDeg = dhuhr + hourAngle(declination, latitude, config.IshaAngle+90)/15.0
+		// Isha: sun is at -IshaAngle degrees below the horizon
+		ishaDeg = dhuhr + hourAngle(declination, latitude, -config.IshaAngle)/15.0
 	}
 
 	// Convert to time strings

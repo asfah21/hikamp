@@ -168,8 +168,9 @@ func createTables() {
 
 	// Seed default settings
 	defaultSettings := map[string]string{
-		"company_name":   "Hikvision Broadcast",
-		"timezone":       "Asia/Jakarta",
+		"company_name": "Hikvision Broadcast",
+		"timezone":     "Asia/Makassar",
+
 		"default_volume": "50",
 		"auto_sync":      "false",
 		"dark_mode":      "false",

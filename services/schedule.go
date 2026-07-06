@@ -1,6 +1,10 @@
 package services
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"ego/internal/hikvision"
 	"ego/models"
 	"ego/repositories"
@@ -45,13 +49,59 @@ func SyncScheduleToDevice(scheduleID int) error {
 
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
-	// Build Hikvision schedule payload
-	payload := buildHikvisionSchedulePayload(schedule)
+	// Get timezone offset from location settings
+	timezoneOffset := "+08:00" // default fallback
+	location, err := repositories.GetPrayerLocation()
+	if err == nil && location.Timezone != "" {
+		timezoneOffset = getTimezoneOffset(location.Timezone)
+	}
+
+	// Build Hikvision schedule payload with proper time format
+	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset)
 	return client.CreateSchedule(payload)
 }
 
+// getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "+07:00")
+func getTimezoneOffset(tzName string) string {
+	loc, err := time.LoadLocation(tzName)
+	if err != nil {
+		return "+08:00"
+	}
+	_, offset := time.Now().In(loc).Zone()
+	hours := offset / 3600
+	mins := (offset % 3600) / 60
+	if hours >= 0 {
+		return fmt.Sprintf("+%02d:%02d", hours, mins)
+	}
+	return fmt.Sprintf("-%02d:%02d", -hours, mins)
+}
+
+// formatTimeForHikvision converts "HH:MM" or "HH:MM:SS" to "HH:MM:SS+08:00" format
+func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
+	// Remove any existing timezone suffix if present
+	timeStr = strings.TrimSuffix(timeStr, timezoneOffset)
+
+	// Count colons to determine format
+	parts := strings.Split(timeStr, ":")
+	switch len(parts) {
+	case 2:
+		// HH:MM -> HH:MM:SS
+		return fmt.Sprintf("%s:%s:00%s", parts[0], parts[1], timezoneOffset)
+	case 3:
+		// HH:MM:SS -> HH:MM:SS
+		return fmt.Sprintf("%s:%s:%s%s", parts[0], parts[1], parts[2], timezoneOffset)
+	default:
+		// Unknown format, return as-is with timezone
+		return timeStr + timezoneOffset
+	}
+}
+
 // buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule) map[string]interface{} {
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string) map[string]interface{} {
+	// Format times with proper timezone offset for Hikvision API
+	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
+	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
+
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			{
@@ -72,8 +122,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule) map[string]inter
 	// Build schedule info based on type
 	scheduleList := []map[string]interface{}{
 		{
-			"beginTime": s.BeginTime,
-			"endTime":   s.EndTime,
+			"beginTime": beginTime,
+			"endTime":   endTime,
 			"playMode":  "order",
 			"operation": map[string]interface{}{
 				"audioSource":   "customAudio",

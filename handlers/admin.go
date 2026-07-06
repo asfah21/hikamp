@@ -727,7 +727,23 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 			services.SavePrayerBroadcastConfig(cfg)
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer broadcast settings saved","reload":"true"}`)
+		// After saving broadcast configs, sync schedules to devices
+		location, err := services.GetPrayerLocation()
+		if err == nil && location != nil {
+			// Generate schedules for the next 30 days and sync to devices
+			go func() {
+				services.CreatePrayerSchedules(location, 30)
+				// Sync all enabled schedules to their devices
+				schedules, _ := services.GetAllSchedules()
+				for _, s := range schedules {
+					if s.Enabled {
+						services.SyncScheduleToDevice(s.ID)
+					}
+				}
+			}()
+		}
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer broadcast settings saved and synced to devices","reload":"true"}`)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -758,7 +774,17 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer schedules created for `+strconv.Itoa(days)+` days","reload":"true"}`)
+		// Sync all enabled schedules to their devices
+		go func() {
+			schedules, _ := services.GetAllSchedules()
+			for _, s := range schedules {
+				if s.Enabled {
+					services.SyncScheduleToDevice(s.ID)
+				}
+			}
+		}()
+
+		w.Header().Set("HX-Trigger", `{"toast":"Prayer schedules created for `+strconv.Itoa(days)+` days and synced to devices","reload":"true"}`)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
