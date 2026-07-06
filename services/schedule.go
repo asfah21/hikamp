@@ -35,7 +35,26 @@ func DeleteSchedule(id int) error {
 	return repositories.DeleteSchedule(id)
 }
 
-// SyncScheduleToDevice syncs a schedule to a Hikvision device
+// getStablePlanSchemeID generates a stable, unique planSchemeID for a schedule.
+// Uses schedule ID + name to ensure it's stable across syncs (no random/timestamp component).
+func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
+	// Sanitize name to remove characters that might cause issues in planSchemeID
+	safeName := strings.Map(func(r rune) rune {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == ' ' {
+			return r
+		}
+		return '_'
+	}, s.Name)
+
+	if s.ID > 0 {
+		return fmt.Sprintf("sch_%d_%s", s.ID, safeName)
+	}
+	return fmt.Sprintf("sch_%s", safeName)
+}
+
+// SyncScheduleToDevice syncs a schedule to a Hikvision device.
+// Uses a stable planSchemeID and deletes any existing schedule with the same ID first
+// to prevent duplicates on re-sync.
 func SyncScheduleToDevice(scheduleID int) error {
 	schedule, err := repositories.GetScheduleByID(scheduleID)
 	if err != nil {
@@ -56,8 +75,14 @@ func SyncScheduleToDevice(scheduleID int) error {
 		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
-	// Build Hikvision schedule payload with proper time format
-	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset)
+	// Generate a stable planSchemeID
+	planSchemeID := getStablePlanSchemeID(schedule)
+
+	// Try to delete existing schedule with this ID first (ignore error if it doesn't exist)
+	client.DeletePlanScheme(planSchemeID)
+
+	// Build Hikvision schedule payload with proper time format and stable ID
+	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID)
 	return client.CreateSchedule(payload)
 }
 
@@ -97,7 +122,7 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 }
 
 // buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string) map[string]interface{} {
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
 	// Format times with proper timezone offset for Hikvision API
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
@@ -106,12 +131,6 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	// Format: YYYY-MM-DD (date only, not time)
 	today := time.Now().Format("2006-01-02")
 	futureDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
-
-	// Use a unique planSchemeID to avoid conflicts
-	planSchemeID := fmt.Sprintf("%s_%d", s.Name, s.ID)
-	if s.ID == 0 {
-		planSchemeID = fmt.Sprintf("%s_%d", s.Name, time.Now().Unix())
-	}
 
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{

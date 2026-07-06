@@ -93,11 +93,79 @@ func (c *Client) TestConnection() error {
 	return err
 }
 
-// SearchSchedule searches for broadcast schedules
-func (c *Client) SearchSchedule() (interface{}, error) {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return nil, fmt.Errorf("SearchSchedule not yet implemented - inspect Hikvision Web UI Network tab first")
+// SearchPlanScheme searches for existing broadcast plan schemes on the device.
+// Uses the same endpoint pattern as AddPlanScheme but with GET method.
+func (c *Client) SearchPlanScheme() (interface{}, error) {
+	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/SearchPlanScheme?format=json"
+	resp, err := DoRequest(c.HTTPClient, "GET", url, c.Username, c.Password, nil, "")
+	if err != nil {
+		return nil, fmt.Errorf("search plan scheme request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("search plan scheme failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Try to parse as JSON
+	var result interface{}
+	if err := json.Unmarshal(body, &result); err == nil {
+		return result, nil
+	}
+
+	return string(body), nil
+}
+
+// DeletePlanScheme deletes a broadcast plan scheme by its ID.
+// Uses the ModifyPlanScheme endpoint with an empty enabled=false payload to remove it.
+func (c *Client) DeletePlanScheme(planSchemeID string) error {
+	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json"
+
+	// Delete payload: set enabled=false and empty schedule to effectively remove it
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
+			{
+				"planSchemeID":   planSchemeID,
+				"enabled":        false,
+				"planSchemeName": planSchemeID,
+				"audioOutID":     []int{1},
+				"dailyScheduleInfo": map[string]interface{}{
+					"startTime":         "2000-01-01",
+					"stopTime":          "2000-01-01",
+					"dailyScheduleList": []map[string]interface{}{},
+				},
+			},
+		},
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal delete payload: %w", err)
+	}
+
+	resp, err := DoRequest(c.HTTPClient, "POST", url, c.Username, c.Password, bytes.NewReader(jsonData), "application/json")
+	if err != nil {
+		return fmt.Errorf("delete plan scheme request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		return fmt.Errorf("delete plan scheme failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // CreateSchedule creates a broadcast schedule
@@ -120,20 +188,6 @@ func (c *Client) CreateSchedule(payload interface{}) error {
 	}
 
 	return nil
-}
-
-// UpdateSchedule updates a broadcast schedule
-func (c *Client) UpdateSchedule(payload interface{}) error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("UpdateSchedule not yet implemented - inspect Hikvision Web UI Network tab first")
-}
-
-// DeleteSchedule deletes a broadcast schedule
-func (c *Client) DeleteSchedule(scheduleID string) error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("DeleteSchedule not yet implemented - inspect Hikvision Web UI Network tab first")
 }
 
 // SearchAudio searches for audio files on the device
