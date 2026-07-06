@@ -196,6 +196,9 @@ func createTables() {
 	// Migration: add sample_rate column to audio_files if it doesn't exist
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS sample_rate INTEGER DEFAULT 0`)
 
+	// Migration: add duration_str column to audio_files if it doesn't exist
+	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS duration_str VARCHAR(20) DEFAULT ''`)
+
 	log.Println("Database tables initialized")
 }
 

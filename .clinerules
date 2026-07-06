@@ -1,0 +1,133 @@
+# Hikamp Project Rules
+
+## Mandatory Workflow
+
+Before writing any code:
+1. Read all relevant files.
+2. Explain the root cause.
+3. Explain the implementation plan.
+4. Wait for confirmation if the change is architectural.
+
+Do not skip these steps.
+
+## Architecture
+- `models/` - Data structures/structs
+- `repositories/` - Database queries (SQL)
+- `services/` - Business logic
+- `handlers/` - HTTP handlers
+- `templates/` - HTML templates
+  - `templates/_pages/` - Page-specific templates (named `dashboard-{page}.html`)
+  - `templates/sections/` - Reusable template sections
+- `database/` - Database connection and migrations
+- `internal/hikvision/` - Hikvision device API client
+
+## Key Patterns
+
+### Template Naming
+- Page templates: `templates/_pages/dashboard-{page}.html`
+- Each template defines `{{define "content"}}` block
+- Layout is handled by `templates/layout-dashboard.html`
+
+### HTMX + Alpine.js
+- Forms use `hx-post`, `hx-get` with `hx-target="#main-content"`
+- Modals use `hx-target="#modal-container"`
+- Alpine.js `x-data` for interactive form components
+- **IMPORTANT**: When using Alpine.js `x-bind:value` with computed functions, ALWAYS call with parentheses: `x-bind:value="functionName()"` not `x-bind:value="functionName"`
+
+### Data Flow
+- Handler reads form values with `r.FormValue()`
+- Passes to Service layer
+- Service calls Repository
+- Repository executes SQL queries
+
+### Database
+- PostgreSQL with `lib/pq` driver
+- Migrations in `database/db.go` using `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
+- All tables use `SERIAL PRIMARY KEY`, `created_at TIMESTAMP DEFAULT NOW()`, `updated_at TIMESTAMP DEFAULT NOW()`
+
+### Schedule Time Format
+- `begin_time` and `end_time` stored as string in format: `HH:MM:SS+HH:MM` (e.g., `12:00:00+08:00`)
+- Timezone offset is included in the time string
+
+### Common Pitfalls to Avoid
+1. Alpine.js function calls in `x-bind` must use `()` parentheses
+2. Template data is accessed via `.Data` (e.g., `.Data.Schedule`, `.Data.Devices`)
+3. When adding new columns to a table, add migration in `database/db.go` AND update all queries in the corresponding repository file
+4. The `Scan()` call in repository must match the SELECT columns exactly
+5. Prayer times use 5 fixed names: "fajr", "dhuhr", "asr", "maghrib", "isha"
+
+# AI Behavior Rules
+
+## Source of Truth
+- NEVER invent APIs, JSON fields, XML fields, enum values, database columns, or function names.
+- Always inspect the relevant files before proposing or writing code.
+- Use the existing codebase as the primary source of truth.
+- If documentation exists in /docs, it takes precedence over assumptions.
+- If required information is missing, stop and explain what is missing instead of guessing.
+
+## Code Changes
+- Make the smallest possible change that fixes the problem.
+- Do not refactor unrelated code.
+- Preserve existing coding style.
+- Do not rename exported functions, structs, files, or routes unless explicitly requested.
+
+## Debugging
+Before suggesting a fix:
+1. Identify the root cause.
+2. Explain why it happens.
+3. Point to the relevant file(s).
+4. Then implement the fix.
+
+Never patch code blindly.
+
+## API Rules
+- Never manually build JSON strings.
+- Always use json.Marshal or json.NewEncoder.
+- Always log the outgoing request body when debugging API integrations.
+- Preserve unknown fields from third-party APIs unless documentation says otherwise.
+
+## Hikvision Integration
+The Hikvision API is extremely strict.
+
+Rules:
+- Follow the official Hikvision documentation exactly.
+- Never invent JSON payloads.
+- Never invent XML payloads.
+- Never change field names unless documentation confirms it.
+- Verify required fields before modifying payload structures.
+- Preserve request ordering if existing payload already matches documentation.
+
+If an API returns:
+- badJsonContent
+- Invalid XML
+- Invalid Operation
+- Invalid Format
+
+assume the payload is incorrect and inspect the request before modifying business logic.
+
+## Database
+Before modifying SQL:
+- Verify table schema.
+- Verify Scan() order matches SELECT.
+- Verify INSERT columns match VALUES.
+- Never assume a column exists.
+
+## Go
+- Prefer existing helper functions over creating new ones.
+- Reuse existing structs whenever possible.
+- Avoid duplicate logic.
+- Return explicit errors.
+- Never ignore errors unless explicitly documented.
+
+## Frontend
+- Preserve HTMX behaviour.
+- Preserve Alpine.js behaviour.
+- Do not replace HTMX with JavaScript unless requested.
+- Do not modify CSS/UI when fixing backend bugs.
+
+## Response Style
+When proposing a fix:
+- Explain the root cause first.
+- Explain why the fix is correct.
+- Mention which files were inspected.
+- If uncertain, explicitly state the uncertainty instead of guessing.

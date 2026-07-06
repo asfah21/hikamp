@@ -62,7 +62,7 @@
                                 <option value="+06:30">+06:30</option>
                                 <option value="+00:00">+00:00</option>
                             </select>
-                            <input type="hidden" name="begin_time" x-bind:value="beginTimeValue">
+                            <input type="hidden" name="begin_time" x-bind:value="beginTimeValue()">
                         </div>
                         <div class="time-picker-actions">
                             <button type="button" class="btn btn-sm btn-secondary" @click="setBeginToNow()" title="Set to current time">
@@ -97,7 +97,7 @@
                                 <option value="+06:30">+06:30</option>
                                 <option value="+00:00">+00:00</option>
                             </select>
-                            <input type="hidden" name="end_time" x-bind:value="endTimeValue">
+                            <input type="hidden" name="end_time" x-bind:value="endTimeValue()">
                         </div>
                         <div class="time-picker-actions">
                             <button type="button" class="btn btn-sm btn-secondary" @click="setEndToBeginPlusDuration()" title="Set end time = begin time + audio duration">
