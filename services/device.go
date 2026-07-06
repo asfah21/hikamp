@@ -70,7 +70,7 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 	if err != nil {
 		return fmt.Errorf("audio file not found (ID: %d): %w", audioID, err)
 	}
-	if audioFile.HikvisionAudioID == 0 {
+	if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
 		return fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
 	}
 
@@ -84,5 +84,5 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
-	return client.BroadcastNowWithTimezone(audioFile.HikvisionAudioID, volume, durationMinutes, timezoneOffset)
+	return client.BroadcastNowWithTimezone(*audioFile.HikvisionAudioID, volume, durationMinutes, timezoneOffset)
 }

@@ -31,7 +31,7 @@ func SavePrayerLocation(p *models.PrayerLocation) error {
 
 // GetPrayerTimes retrieves prayer times for a date range
 func GetPrayerTimes(startDate, endDate string) ([]models.PrayerTime, error) {
-	query := `SELECT id, date, fajr, dhuhr, asr, maghrib, isha, location_id, created_at 
+	query := `SELECT id, TO_CHAR(date, 'YYYY-MM-DD') as date, fajr, dhuhr, asr, maghrib, isha, location_id, created_at 
               FROM prayer_times WHERE date >= $1 AND date <= $2 ORDER BY date ASC`
 	rows, err := database.DB.Query(query, startDate, endDate)
 	if err != nil {

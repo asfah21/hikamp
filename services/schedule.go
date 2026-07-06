@@ -79,7 +79,7 @@ func SyncScheduleToDevice(scheduleID int) error {
 	if err != nil {
 		return fmt.Errorf("audio file not found (ID: %d): %w", schedule.AudioID, err)
 	}
-	if audioFile.HikvisionAudioID == 0 {
+	if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
 		return fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
 	}
 
@@ -96,7 +96,7 @@ func SyncScheduleToDevice(scheduleID int) error {
 	// Generate a stable planSchemeID
 	planSchemeID := getStablePlanSchemeID(schedule)
 
-	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s, hikvisionAudioID=%d", planSchemeID, schedule.BeginTime, schedule.EndTime, audioFile.HikvisionAudioID)
+	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s, hikvisionAudioID=%d", planSchemeID, schedule.BeginTime, schedule.EndTime, *audioFile.HikvisionAudioID)
 
 	// Step 1: Delete existing plan scheme with the same ID (if any)
 	// This prevents "duplicate" or conflict errors on re-sync.
@@ -111,7 +111,7 @@ func SyncScheduleToDevice(scheduleID int) error {
 	}
 
 	// Step 2: Build and send the new schedule payload
-	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID, audioFile.HikvisionAudioID)
+	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
 
 	err = client.CreateSchedule(payload)
 	if err != nil {

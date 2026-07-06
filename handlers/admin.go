@@ -331,21 +331,22 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 		// After upload, search audio on device to get metadata (duration, path)
 		audioInfo, _ := client.SearchAudioByID(audioID)
 
+		hikvisionAudioID := audioID
 		audioFile := &models.AudioFile{
 			Name:             header.Filename,
 			Category:         category,
 			Duration:         0,
 			DurationStr:      "",
 			FileSize:         header.Size,
-			HikvisionAudioID: audioID,
-			HikvisionPath:    "",
+			HikvisionAudioID: &hikvisionAudioID,
+			HikvisionPath:    nil,
 			DeviceID:         &deviceID,
 		}
 
 		if audioInfo != nil {
 			audioFile.Duration = audioInfo.Duration
 			audioFile.DurationStr = audioInfo.DurationStr
-			audioFile.HikvisionPath = audioInfo.HikvisionPath
+			audioFile.HikvisionPath = &audioInfo.HikvisionPath
 		}
 
 		_, err = services.CreateAudioFile(audioFile)
@@ -410,14 +411,16 @@ func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
 
 		synced := 0
 		for _, audio := range audioList {
+			hikvisionAudioID := audio.CustomAudioID
+			hikvisionPath := audio.HikvisionPath
 			audioFile := &models.AudioFile{
 				Name:             audio.CustomAudioName,
 				Category:         "Custom",
 				Duration:         audio.Duration,
 				DurationStr:      audio.DurationStr,
 				FileSize:         int64(audio.AudioFileSize),
-				HikvisionAudioID: audio.CustomAudioID,
-				HikvisionPath:    audio.HikvisionPath,
+				HikvisionAudioID: &hikvisionAudioID,
+				HikvisionPath:    &hikvisionPath,
 				DeviceID:         &deviceID,
 			}
 			_, err := services.UpsertAudioFileByHikvisionID(audioFile)

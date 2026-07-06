@@ -59,7 +59,8 @@ func CalculatePrayerTimes(date time.Time, latitude, longitude float64, timezone 
 	declination, equation := sunPosition(jd)
 
 	// Calculate Dhuhr (zenith) - result is in UTC decimal hours
-	dhuhrUTC := 12.0 + equation - longitude/15.0
+	// equation is in DEGREES, convert to hours by dividing by 15
+	dhuhrUTC := 12.0 + equation/15.0 - longitude/15.0
 	// Convert to local time by adding timezone offset
 	dhuhr := dhuhrUTC + timezoneOffset
 
