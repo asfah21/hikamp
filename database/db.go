@@ -212,6 +212,9 @@ func createTables() {
 		END IF;
 	END $$`)
 
+	// Migration: add hikvision_path column to audio_files if it doesn't exist
+	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS hikvision_path VARCHAR(500) DEFAULT ''`)
+
 	log.Println("Database tables initialized")
 }
 
