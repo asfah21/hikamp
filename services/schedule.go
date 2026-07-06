@@ -61,6 +61,11 @@ func SyncScheduleToDevice(scheduleID int) error {
 		return err
 	}
 
+	// Validate begin_time and end_time are not empty
+	if schedule.BeginTime == "" || schedule.EndTime == "" {
+		return fmt.Errorf("cannot sync schedule '%s': begin_time and end_time must be set. Edit the schedule and set the time values first", schedule.Name)
+	}
+
 	device, err := repositories.GetDeviceByID(schedule.DeviceID)
 	if err != nil {
 		return err
