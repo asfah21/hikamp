@@ -179,10 +179,9 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 
 	// Build schedule list entry
 	scheduleEntry := hikvision.ScheduleEntry{
-		BeginTime:   beginTime,
-		EndTime:     endTime,
-		PlayNowTime: "",
-		PlayMode:    "order",
+		BeginTime: beginTime,
+		EndTime:   endTime,
+		PlayMode:  "order",
 		Operation: hikvision.Operation{
 			AudioSource:   "customAudio",
 			CustomAudioID: []int{s.AudioID},

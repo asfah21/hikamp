@@ -42,11 +42,10 @@ type WeeklyScheduleDay struct {
 
 // ScheduleEntry represents a single schedule time entry
 type ScheduleEntry struct {
-	BeginTime   string    `json:"beginTime"`
-	EndTime     string    `json:"endTime"`
-	PlayNowTime string    `json:"playNowTime"`
-	PlayMode    string    `json:"playMode"`
-	Operation   Operation `json:"operation"`
+	BeginTime string    `json:"beginTime"`
+	EndTime   string    `json:"endTime"`
+	PlayMode  string    `json:"playMode"`
+	Operation Operation `json:"operation"`
 }
 
 // Operation defines the audio playback operation

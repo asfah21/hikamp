@@ -1,6 +1,7 @@
 package hikvision
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -40,10 +41,31 @@ func NewDigestClient(username, password string) *http.Client {
 // Uses the standard RFC 7616 digest implementation from github.com/icholy/digest.
 // The provided client should be a digest-aware client (created via NewDigestClient)
 // to ensure connection reuse and digest nonce caching.
+//
+// IMPORTANT: This function sets req.GetBody so that the digest transport can
+// re-read the request body when retrying after a 401 (digest challenge).
+// Without GetBody, the digest library would send an empty body on retry,
+// causing "Invalid JSON Content" / "badJsonContent" errors from Hikvision devices.
 func DoRequest(client *http.Client, method, url string, body io.Reader, contentType string) (*http.Response, error) {
-	req, err := http.NewRequest(method, url, body)
+	// Read body into bytes so we can create multiple readers (for GetBody)
+	var bodyBytes []byte
+	if body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read body: %w", err)
+		}
+	}
+
+	req, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set GetBody so the digest transport can re-read the body on 401 retry.
+	// This is critical for Hikvision devices that use Digest Authentication.
+	req.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
 	}
 
 	if contentType != "" {

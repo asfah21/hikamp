@@ -350,10 +350,9 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 					StopTime:  dateStr,
 					DailyScheduleList: []ScheduleEntry{
 						{
-							BeginTime:   beginTime,
-							EndTime:     endTime,
-							PlayNowTime: "",
-							PlayMode:    "order",
+							BeginTime: beginTime,
+							EndTime:   endTime,
+							PlayMode:  "order",
 							Operation: Operation{
 								AudioSource:   "customAudio",
 								CustomAudioID: []int{audioID},
