@@ -340,12 +340,12 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
-	// Hikvision Web UI uses SPACE separator between time and timezone
-	beginTime := now.Format("15:04:05") + " " + timezoneOffset
-	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + " " + timezoneOffset
-	// Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
+	// Hikvision Web UI uses "+" separator between time and timezone (e.g., "22:02:00+08:00")
+	beginTime := now.Format("15:04:05") + "+" + timezoneOffset
+	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
+	// Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
-	dateStr := now.Format("2006-01-02") + " " + timezoneOffset
+	dateStr := now.Format("2006-01-02") + "+" + timezoneOffset
 
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{

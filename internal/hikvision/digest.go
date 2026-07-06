@@ -39,10 +39,10 @@ func NewDigestClient(username, password string) *http.Client {
 
 // DoRequest performs an HTTP request with Digest Authentication.
 // Uses the standard RFC 7616 digest implementation from github.com/icholy/digest.
-// Creates a fresh digest client for each request to avoid body-read issues
-// that can occur when the digest transport retries after a 401 challenge.
+// Reuses the provided client's transport to maintain nonce caching across requests.
+// Sets GetBody on the request so the digest transport can re-read the body on 401 retry.
 func DoRequest(client *http.Client, method, url string, body io.Reader, contentType string) (*http.Response, error) {
-	// Read body into bytes so we can create multiple readers
+	// Read body into bytes so we can create multiple readers for GetBody
 	var bodyBytes []byte
 	if body != nil {
 		var err error
@@ -51,13 +51,6 @@ func DoRequest(client *http.Client, method, url string, body io.Reader, contentT
 			return nil, fmt.Errorf("failed to read body: %w", err)
 		}
 	}
-
-	// Create a fresh digest client for this request.
-	// This avoids body-read issues when the digest transport retries after 401.
-	// We extract credentials from the provided client's transport.
-	username, password := extractCredentials(client)
-	freshClient := NewDigestClient(username, password)
-	freshClient.Timeout = client.Timeout
 
 	req, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
@@ -73,7 +66,13 @@ func DoRequest(client *http.Client, method, url string, body io.Reader, contentT
 		req.Header.Set("Content-Type", contentType)
 	}
 
-	resp, err := freshClient.Do(req)
+	// Log the exact request being sent
+	if len(bodyBytes) > 0 {
+		log.Printf("[HIKVISION DOREQUEST] Sending %s %s (Content-Length: %d)", method, url, len(bodyBytes))
+		log.Printf("[HIKVISION DOREQUEST] Body: %s", string(bodyBytes))
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}

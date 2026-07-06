@@ -121,8 +121,8 @@ func SyncScheduleToDevice(scheduleID int) error {
 }
 
 // getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "08:00").
-// Note: Returns WITHOUT the +/- sign prefix because Hikvision Web UI uses space separator format:
-// "HH:MM:SS HH:MM" (e.g., "12:02:00 08:00") — the sign is implied by the value.
+// Note: Returns WITHOUT the "+" prefix because Web UI uses "+" as separator:
+// "HH:MM:SS+08:00" — the "+" is added by the caller.
 // For negative offsets, the sign IS included (e.g., "-05:00").
 func getTimezoneOffset(tzName string) string {
 	loc, err := time.LoadLocation(tzName)
@@ -133,19 +133,19 @@ func getTimezoneOffset(tzName string) string {
 	hours := offset / 3600
 	mins := (offset % 3600) / 60
 	if hours >= 0 {
-		// Positive offset: return without "+" prefix (Web UI format: "08:00")
+		// Positive offset: return without "+" prefix (caller adds "+" separator)
 		return fmt.Sprintf("%02d:%02d", hours, mins)
 	}
 	// Negative offset: include "-" prefix
 	return fmt.Sprintf("-%02d:%02d", -hours, mins)
 }
 
-// formatTimeForHikvision converts a time string to "HH:MM:SS HH:MM" format.
-// Hikvision Web UI uses SPACE separator (not "+") between time and timezone.
+// formatTimeForHikvision converts a time string to "HH:MM:SS+HH:MM" format.
+// Hikvision Web UI uses "+" separator between time and timezone (e.g., "22:02:00+08:00").
 // Handles various input formats:
-//   - "HH:MM" -> "HH:MM:SS HH:MM"
-//   - "HH:MM:SS" -> "HH:MM:SS HH:MM"
-//   - "HH:MM:SS+08:00" -> "HH:MM:SS HH:MM" (timezone is replaced with space format)
+//   - "HH:MM" -> "HH:MM:SS+HH:MM"
+//   - "HH:MM:SS" -> "HH:MM:SS+HH:MM"
+//   - "HH:MM:SS+08:00" -> "HH:MM:SS+HH:MM" (timezone is replaced)
 //   - "" -> returns empty string (caller should validate)
 func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	if timeStr == "" {
@@ -164,14 +164,14 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	parts := strings.Split(timeStr, ":")
 	switch len(parts) {
 	case 2:
-		// HH:MM -> HH:MM:SS HH:MM (space separator)
-		return fmt.Sprintf("%s:%s:00 %s", parts[0], parts[1], timezoneOffset)
+		// HH:MM -> HH:MM:SS+HH:MM (plus separator)
+		return fmt.Sprintf("%s:%s:00+%s", parts[0], parts[1], timezoneOffset)
 	case 3:
-		// HH:MM:SS -> HH:MM:SS HH:MM (space separator)
-		return fmt.Sprintf("%s:%s:%s %s", parts[0], parts[1], parts[2], timezoneOffset)
+		// HH:MM:SS -> HH:MM:SS+HH:MM (plus separator)
+		return fmt.Sprintf("%s:%s:%s+%s", parts[0], parts[1], parts[2], timezoneOffset)
 	default:
-		// Unknown format, return as-is with timezone (space separator)
-		return timeStr + " " + timezoneOffset
+		// Unknown format, return as-is with timezone (plus separator)
+		return timeStr + "+" + timezoneOffset
 	}
 }
 
@@ -179,19 +179,19 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 // Key differences from standard camelCase:
 //   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
-//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
-//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
+//   - startTime/stopTime format: "YYYY-MM-DD+HH:MM" (with "+" separator)
+//   - beginTime/endTime format: "HH:MM:SS+HH:MM" (plus separator)
 func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
-	// Format times using Hikvision Web UI format: "HH:MM:SS HH:MM" (space separator)
+	// Format times using Hikvision Web UI format: "HH:MM:SS+HH:MM" (plus separator)
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
 
-	// Hikvision Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
+	// Hikvision Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00" for UTC+8), NOT the current time.
-	// Example from Web UI: "startTime": "2026-07-06 08:00"
+	// Example from Web UI: "startTime": "2026-07-06+08:00"
 	now := time.Now()
-	today := now.Format("2006-01-02") + " " + timezoneOffset
-	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + " " + timezoneOffset
+	today := now.Format("2006-01-02") + "+" + timezoneOffset
+	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
 
 	// Build schedule list entry
 	scheduleEntry := map[string]interface{}{
