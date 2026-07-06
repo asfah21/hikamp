@@ -200,6 +200,18 @@ func createTables() {
 	// Migration: add duration_str column to audio_files if it doesn't exist
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS duration_str VARCHAR(20) DEFAULT ''`)
 
+	// Migration: add hikvision_audio_id column to audio_files if it doesn't exist
+	// Note: UNIQUE constraint added separately because ADD COLUMN IF NOT EXISTS + UNIQUE
+	// can fail on PostgreSQL if column exists but constraint doesn't.
+	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS hikvision_audio_id INTEGER`)
+	DB.Exec(`DO $$ BEGIN
+		IF NOT EXISTS (
+			SELECT 1 FROM pg_constraint WHERE conname = 'audio_files_hikvision_audio_id_key'
+		) THEN
+			ALTER TABLE audio_files ADD CONSTRAINT audio_files_hikvision_audio_id_key UNIQUE (hikvision_audio_id);
+		END IF;
+	END $$`)
+
 	log.Println("Database tables initialized")
 }
 
