@@ -3,6 +3,9 @@ package services
 import (
 	"ego/models"
 	"ego/repositories"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -123,6 +126,26 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 				continue
 			}
 
+			// Calculate end time: prayer time + broadcast duration (default 5 minutes)
+			endTime := prayerTime
+			if parts := strings.Split(prayerTime, ":"); len(parts) >= 2 {
+				h, _ := strconv.Atoi(parts[0])
+				m, _ := strconv.Atoi(parts[1])
+				totalMin := h*60 + m + 5 // add 5 minutes
+				endH := totalMin / 60
+				endM := totalMin % 60
+				if endH >= 24 {
+					endH = 23
+					endM = 59
+				}
+				if len(parts) == 2 {
+					endTime = fmt.Sprintf("%02d:%02d", endH, endM)
+				} else {
+					s, _ := strconv.Atoi(parts[2])
+					endTime = fmt.Sprintf("%02d:%02d:%02d", endH, endM, s)
+				}
+			}
+
 			// Create a daily schedule for this prayer time
 			schedule := &models.BroadcastSchedule{
 				Name:         "Prayer: " + models.PrayerNames[cfg.Prayer] + " - " + pt.Date,
@@ -130,7 +153,7 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 				DeviceID:     cfg.DeviceID,
 				ScheduleType: "daily",
 				BeginTime:    prayerTime,
-				EndTime:      prayerTime,
+				EndTime:      endTime,
 				Volume:       cfg.Volume,
 				Enabled:      true,
 			}

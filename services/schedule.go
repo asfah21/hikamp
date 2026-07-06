@@ -85,12 +85,38 @@ func SyncScheduleToDevice(scheduleID int) error {
 	// Generate a stable planSchemeID
 	planSchemeID := getStablePlanSchemeID(schedule)
 
-	// Build Hikvision schedule payload with proper time format and stable ID
-	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID)
-
 	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s", planSchemeID, schedule.BeginTime, schedule.EndTime)
 
-	return client.CreateSchedule(payload)
+	// Step 1: Delete existing plan scheme with the same ID (if any)
+	// This prevents "duplicate" or conflict errors on re-sync.
+	// Ignore error if delete fails (e.g., scheme doesn't exist yet)
+	err = client.DeletePlanScheme(planSchemeID)
+	if err != nil {
+		log.Printf("[SYNC] DeletePlanScheme (expected if first sync): %v", err)
+	} else {
+		log.Printf("[SYNC] Successfully deleted existing plan scheme: %s", planSchemeID)
+		// Wait a moment for the device to process the deletion
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	// Step 2: Build and send the new schedule payload
+	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID)
+
+	err = client.CreateSchedule(payload)
+	if err != nil {
+		return fmt.Errorf("create schedule failed: %w", err)
+	}
+
+	// Step 3: Verify the schedule was created by searching for it
+	log.Printf("[SYNC] Schedule created successfully, verifying...")
+	searchResult, err := client.SearchPlanScheme()
+	if err != nil {
+		log.Printf("[SYNC] Warning: verification search failed: %v", err)
+	} else {
+		log.Printf("[SYNC] Verification search result: %+v", searchResult)
+	}
+
+	return nil
 }
 
 // getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "+07:00")
@@ -138,8 +164,9 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	}
 }
 
-// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
+// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model.
+// Uses struct-based payload to ensure correct JSON key ordering matching the verified format.
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) *hikvision.AddPlanSchemePayload {
 	// Format times with proper timezone offset for Hikvision API
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
@@ -151,28 +178,33 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	futureDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
 
 	// Build schedule list entry
-	scheduleEntry := map[string]interface{}{
-		"beginTime":   beginTime,
-		"endTime":     endTime,
-		"playNowTime": "",
-		"playMode":    "order",
-		"operation": map[string]interface{}{
-			"audioSource":   "customAudio",
-			"customAudioID": []int{s.AudioID},
-			"audioLevel":    5,
-			"audioVolume":   s.Volume,
+	scheduleEntry := hikvision.ScheduleEntry{
+		BeginTime:   beginTime,
+		EndTime:     endTime,
+		PlayNowTime: "",
+		PlayMode:    "order",
+		Operation: hikvision.Operation{
+			AudioSource:   "customAudio",
+			CustomAudioID: []int{s.AudioID},
+			AudioLevel:    5,
+			AudioVolume:   s.Volume,
 		},
 	}
 
-	// Build schedule info based on type
-	var scheduleInfo map[string]interface{}
+	// Build the plan scheme
+	planScheme := hikvision.BroadcastPlanScheme{
+		PlanSchemeID:   planSchemeID,
+		Enabled:        s.Enabled,
+		PlanSchemeName: s.Name,
+		AudioOutID:     []int{1},
+	}
 
 	switch s.ScheduleType {
 	case "daily":
-		scheduleInfo = map[string]interface{}{
-			"startTime": today,
-			"stopTime":  futureDate,
-			"dailyScheduleList": []map[string]interface{}{
+		planScheme.DailyScheduleInfo = &hikvision.DailyScheduleInfo{
+			StartTime: today,
+			StopTime:  futureDate,
+			DailyScheduleList: []hikvision.ScheduleEntry{
 				scheduleEntry,
 			},
 		}
@@ -181,13 +213,13 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.DayOfWeek != nil {
 			dayOfWeek = *s.DayOfWeek
 		}
-		scheduleInfo = map[string]interface{}{
-			"startTime": today,
-			"stopTime":  futureDate,
-			"weeklyScheduleList": []map[string]interface{}{
+		planScheme.WeeklyScheduleInfo = &hikvision.WeeklyScheduleInfo{
+			StartTime: today,
+			StopTime:  futureDate,
+			WeeklyScheduleList: []hikvision.WeeklyScheduleDay{
 				{
-					"dayOfWeek":    dayOfWeek,
-					"scheduleList": []map[string]interface{}{scheduleEntry},
+					DayOfWeek:    dayOfWeek,
+					ScheduleList: []hikvision.ScheduleEntry{scheduleEntry},
 				},
 			},
 		}
@@ -196,35 +228,23 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		scheduleInfo = map[string]interface{}{
-			"startTime": dateStr,
-			"stopTime":  dateStr,
-			"dailyScheduleList": []map[string]interface{}{
+		planScheme.DailyScheduleInfo = &hikvision.DailyScheduleInfo{
+			StartTime: dateStr,
+			StopTime:  dateStr,
+			DailyScheduleList: []hikvision.ScheduleEntry{
 				scheduleEntry,
 			},
 		}
 	}
 
-	// Determine the schedule info key name
-	scheduleInfoKey := "dailyScheduleInfo"
-	if s.ScheduleType == "weekly" {
-		scheduleInfoKey = "weeklyScheduleInfo"
-	}
-
-	payload := map[string]interface{}{
-		"broadcastPlanSchemeList": []map[string]interface{}{
-			{
-				"planSchemeID":   planSchemeID,
-				"enabled":        s.Enabled,
-				"planSchemeName": s.Name,
-				"audioOutID":     []int{1},
-				scheduleInfoKey:  scheduleInfo,
-			},
+	payload := &hikvision.AddPlanSchemePayload{
+		BroadcastPlanSchemeList: []hikvision.BroadcastPlanScheme{
+			planScheme,
 		},
-		"terminalInfoList": []map[string]interface{}{
+		TerminalInfoList: []hikvision.TerminalInfo{
 			{
-				"terminalID": 1,
-				"audioOutID": []int{1},
+				TerminalID: 1,
+				AudioOutID: []int{1},
 			},
 		},
 	}

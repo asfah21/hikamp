@@ -233,7 +233,7 @@ func (c *Client) DeletePlanScheme(planSchemeID string) error {
 
 // CreateSchedule creates a broadcast schedule on the Hikvision device.
 // Uses AddPlanScheme endpoint with the provided payload.
-func (c *Client) CreateSchedule(payload interface{}) error {
+func (c *Client) CreateSchedule(payload *AddPlanSchemePayload) error {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/AddPlanScheme?format=json"
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -255,6 +255,49 @@ func (c *Client) CreateSchedule(payload interface{}) error {
 	}
 
 	return nil
+}
+
+// CreateScheduleWithRetry creates a broadcast schedule with retry logic for device-busy scenarios.
+// Retries up to maxRetries times with exponential backoff for 4xx/5xx errors.
+func (c *Client) CreateScheduleWithRetry(payload *AddPlanSchemePayload, maxRetries int) error {
+	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/AddPlanScheme?format=json"
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	log.Printf("[HIKVISION] CreateSchedule payload: %s", string(jsonData))
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
+		if err != nil {
+			lastErr = fmt.Errorf("create schedule request failed: %w", err)
+		} else {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if resp.StatusCode < 400 {
+				return nil // success
+			}
+
+			logFailedResponse("POST", url, string(jsonData), resp, body)
+			lastErr = fmt.Errorf("create schedule failed with status %d: %s", resp.StatusCode, string(body))
+
+			// Don't retry if it's a JSON content error (structural issue won't be fixed by retry)
+			if resp.StatusCode == 400 && strings.Contains(string(body), "badJsonContent") {
+				return lastErr
+			}
+		}
+
+		if attempt < maxRetries {
+			backoff := time.Duration(1<<uint(attempt)) * time.Second
+			log.Printf("[HIKVISION RETRY] Waiting %v before retry %d/%d", backoff, attempt+2, maxRetries+1)
+			time.Sleep(backoff)
+		}
+	}
+
+	return fmt.Errorf("create schedule failed after %d retries: %w", maxRetries, lastErr)
 }
 
 // SearchAudio searches for audio files on the device
@@ -295,36 +338,37 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + timezoneOffset
 	dateStr := now.Format("2006-01-02")
 
-	payload := map[string]interface{}{
-		"broadcastPlanSchemeList": []map[string]interface{}{
+	payload := &AddPlanSchemePayload{
+		BroadcastPlanSchemeList: []BroadcastPlanScheme{
 			{
-				"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
-				"enabled":        true,
-				"planSchemeName": "Broadcast Now",
-				"audioOutID":     []int{1},
-				"dailyScheduleInfo": map[string]interface{}{
-					"startTime": dateStr,
-					"stopTime":  dateStr,
-					"dailyScheduleList": []map[string]interface{}{
+				PlanSchemeID:   fmt.Sprintf("broadcast_now_%d", now.Unix()),
+				Enabled:        true,
+				PlanSchemeName: "Broadcast Now",
+				AudioOutID:     []int{1},
+				DailyScheduleInfo: &DailyScheduleInfo{
+					StartTime: dateStr,
+					StopTime:  dateStr,
+					DailyScheduleList: []ScheduleEntry{
 						{
-							"beginTime": beginTime,
-							"endTime":   endTime,
-							"playMode":  "order",
-							"operation": map[string]interface{}{
-								"audioSource":   "customAudio",
-								"customAudioID": []int{audioID},
-								"audioLevel":    5,
-								"audioVolume":   volume,
+							BeginTime:   beginTime,
+							EndTime:     endTime,
+							PlayNowTime: "",
+							PlayMode:    "order",
+							Operation: Operation{
+								AudioSource:   "customAudio",
+								CustomAudioID: []int{audioID},
+								AudioLevel:    5,
+								AudioVolume:   volume,
 							},
 						},
 					},
 				},
 			},
 		},
-		"terminalInfoList": []map[string]interface{}{
+		TerminalInfoList: []TerminalInfo{
 			{
-				"terminalID": 1,
-				"audioOutID": []int{1},
+				TerminalID: 1,
+				AudioOutID: []int{1},
 			},
 		},
 	}
