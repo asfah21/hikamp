@@ -102,10 +102,21 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
 
+	// Use today's date and a far future date for startTime/stopTime in dailyScheduleInfo
+	// Format: YYYY-MM-DD (date only, not time)
+	today := time.Now().Format("2006-01-02")
+	futureDate := time.Now().AddDate(1, 0, 0).Format("2006-01-02")
+
+	// Use a unique planSchemeID to avoid conflicts
+	planSchemeID := fmt.Sprintf("%s_%d", s.Name, s.ID)
+	if s.ID == 0 {
+		planSchemeID = fmt.Sprintf("%s_%d", s.Name, time.Now().Unix())
+	}
+
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			{
-				"planSchemeID":   s.Name,
+				"planSchemeID":   planSchemeID,
 				"enabled":        s.Enabled,
 				"planSchemeName": s.Name,
 				"audioOutID":     []int{1},
@@ -137,8 +148,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	switch s.ScheduleType {
 	case "daily":
 		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime":         s.BeginTime,
-			"stopTime":          s.EndTime,
+			"startTime":         today,
+			"stopTime":          futureDate,
 			"dailyScheduleList": scheduleList,
 		}
 	case "weekly":
@@ -147,8 +158,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 			dayOfWeek = *s.DayOfWeek
 		}
 		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["weeklyScheduleInfo"] = map[string]interface{}{
-			"startTime": s.BeginTime,
-			"stopTime":  s.EndTime,
+			"startTime": today,
+			"stopTime":  futureDate,
 			"weeklyScheduleList": []map[string]interface{}{
 				{
 					"dayOfWeek":    dayOfWeek,
@@ -157,9 +168,13 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 			},
 		}
 	case "specific_date":
+		dateStr := today
+		if s.SpecificDate != nil && *s.SpecificDate != "" {
+			dateStr = *s.SpecificDate
+		}
 		payload["broadcastPlanSchemeList"].([]map[string]interface{})[0]["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime":         s.BeginTime,
-			"stopTime":          s.EndTime,
+			"startTime":         dateStr,
+			"stopTime":          dateStr,
 			"dailyScheduleList": scheduleList,
 		}
 	}
