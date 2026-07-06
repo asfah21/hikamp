@@ -5,7 +5,7 @@
             <h3>{{if .Data.Schedule}}Edit Schedule{{else}}Add Schedule{{end}}</h3>
             <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
-        <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML" {{if .Data.Schedule}}data-begin-time="{{.Data.Schedule.BeginTime}}" data-end-time="{{.Data.Schedule.EndTime}}" data-audio-id="{{.Data.Schedule.AudioID}}"{{end}}>
+        <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML" {{if .Data.Schedule}}data-begin-time="{{.Data.Schedule.BeginTime}}" data-end-time="{{.Data.Schedule.EndTime}}" data-audio-id="{{.Data.Schedule.AudioID}}"{{end}} @submit="setTimeValues()">
             <div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Schedule Name</label>
@@ -232,6 +232,14 @@ function scheduleForm() {
                 dur = 300;
             }
             this.calcEndFromBegin(dur);
+        },
+
+        // Set hidden input values before form submission
+        setTimeValues: function() {
+            var beginInput = document.querySelector('input[name="begin_time"]');
+            var endInput = document.querySelector('input[name="end_time"]');
+            if (beginInput) beginInput.value = this.beginTimeValue();
+            if (endInput) endInput.value = this.endTimeValue();
         }
     };
 }
