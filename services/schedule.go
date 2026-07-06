@@ -165,8 +165,8 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 }
 
 // buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model.
-// Uses struct-based payload to ensure correct JSON key ordering matching the verified format.
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) *hikvision.AddPlanSchemePayload {
+// Uses map[string]interface{} payload (proven to work with Hikvision firmware).
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
 	// Format times with proper timezone offset for Hikvision API
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
@@ -178,32 +178,32 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	futureDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
 
 	// Build schedule list entry
-	scheduleEntry := hikvision.ScheduleEntry{
-		BeginTime: beginTime,
-		EndTime:   endTime,
-		PlayMode:  "order",
-		Operation: hikvision.Operation{
-			AudioSource:   "customAudio",
-			CustomAudioID: []int{s.AudioID},
-			AudioLevel:    5,
-			AudioVolume:   s.Volume,
+	scheduleEntry := map[string]interface{}{
+		"beginTime": beginTime,
+		"endTime":   endTime,
+		"playMode":  "order",
+		"operation": map[string]interface{}{
+			"audioSource":   "customAudio",
+			"customAudioID": []int{s.AudioID},
+			"audioLevel":    5,
+			"audioVolume":   s.Volume,
 		},
 	}
 
 	// Build the plan scheme
-	planScheme := hikvision.BroadcastPlanScheme{
-		PlanSchemeID:   planSchemeID,
-		Enabled:        s.Enabled,
-		PlanSchemeName: s.Name,
-		AudioOutID:     []int{1},
+	planScheme := map[string]interface{}{
+		"planSchemeID":   planSchemeID,
+		"enabled":        s.Enabled,
+		"planSchemeName": s.Name,
+		"audioOutID":     []int{1},
 	}
 
 	switch s.ScheduleType {
 	case "daily":
-		planScheme.DailyScheduleInfo = &hikvision.DailyScheduleInfo{
-			StartTime: today,
-			StopTime:  futureDate,
-			DailyScheduleList: []hikvision.ScheduleEntry{
+		planScheme["dailyScheduleInfo"] = map[string]interface{}{
+			"startTime": today,
+			"stopTime":  futureDate,
+			"dailyScheduleList": []map[string]interface{}{
 				scheduleEntry,
 			},
 		}
@@ -212,13 +212,13 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.DayOfWeek != nil {
 			dayOfWeek = *s.DayOfWeek
 		}
-		planScheme.WeeklyScheduleInfo = &hikvision.WeeklyScheduleInfo{
-			StartTime: today,
-			StopTime:  futureDate,
-			WeeklyScheduleList: []hikvision.WeeklyScheduleDay{
+		planScheme["weeklyScheduleInfo"] = map[string]interface{}{
+			"startTime": today,
+			"stopTime":  futureDate,
+			"weeklyScheduleList": []map[string]interface{}{
 				{
-					DayOfWeek:    dayOfWeek,
-					ScheduleList: []hikvision.ScheduleEntry{scheduleEntry},
+					"dayOfWeek":    dayOfWeek,
+					"scheduleList": []map[string]interface{}{scheduleEntry},
 				},
 			},
 		}
@@ -227,23 +227,23 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		planScheme.DailyScheduleInfo = &hikvision.DailyScheduleInfo{
-			StartTime: dateStr,
-			StopTime:  dateStr,
-			DailyScheduleList: []hikvision.ScheduleEntry{
+		planScheme["dailyScheduleInfo"] = map[string]interface{}{
+			"startTime": dateStr,
+			"stopTime":  dateStr,
+			"dailyScheduleList": []map[string]interface{}{
 				scheduleEntry,
 			},
 		}
 	}
 
-	payload := &hikvision.AddPlanSchemePayload{
-		BroadcastPlanSchemeList: []hikvision.BroadcastPlanScheme{
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
 			planScheme,
 		},
-		TerminalInfoList: []hikvision.TerminalInfo{
+		"terminalInfoList": []map[string]interface{}{
 			{
-				TerminalID: 1,
-				AudioOutID: []int{1},
+				"terminalID": 1,
+				"audioOutID": []int{1},
 			},
 		},
 	}

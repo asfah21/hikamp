@@ -39,15 +39,10 @@ func NewDigestClient(username, password string) *http.Client {
 
 // DoRequest performs an HTTP request with Digest Authentication.
 // Uses the standard RFC 7616 digest implementation from github.com/icholy/digest.
-// The provided client should be a digest-aware client (created via NewDigestClient)
-// to ensure connection reuse and digest nonce caching.
-//
-// IMPORTANT: This function sets req.GetBody so that the digest transport can
-// re-read the request body when retrying after a 401 (digest challenge).
-// Without GetBody, the digest library would send an empty body on retry,
-// causing "Invalid JSON Content" / "badJsonContent" errors from Hikvision devices.
+// Creates a fresh digest client for each request to avoid body-read issues
+// that can occur when the digest transport retries after a 401 challenge.
 func DoRequest(client *http.Client, method, url string, body io.Reader, contentType string) (*http.Response, error) {
-	// Read body into bytes so we can create multiple readers (for GetBody)
+	// Read body into bytes so we can create multiple readers
 	var bodyBytes []byte
 	if body != nil {
 		var err error
@@ -57,13 +52,19 @@ func DoRequest(client *http.Client, method, url string, body io.Reader, contentT
 		}
 	}
 
+	// Create a fresh digest client for this request.
+	// This avoids body-read issues when the digest transport retries after 401.
+	// We extract credentials from the provided client's transport.
+	username, password := extractCredentials(client)
+	freshClient := NewDigestClient(username, password)
+	freshClient.Timeout = client.Timeout
+
 	req, err := http.NewRequest(method, url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	// Set GetBody so the digest transport can re-read the body on 401 retry.
-	// This is critical for Hikvision devices that use Digest Authentication.
 	req.GetBody = func() (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(bodyBytes)), nil
 	}
@@ -72,12 +73,20 @@ func DoRequest(client *http.Client, method, url string, body io.Reader, contentT
 		req.Header.Set("Content-Type", contentType)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := freshClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	return resp, nil
+}
+
+// extractCredentials extracts username and password from a digest-aware HTTP client.
+func extractCredentials(client *http.Client) (string, string) {
+	if transport, ok := client.Transport.(*digest.Transport); ok {
+		return transport.Username, transport.Password
+	}
+	return "", ""
 }
 
 // logFailedResponse logs the full details of a failed response for debugging.

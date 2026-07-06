@@ -233,7 +233,7 @@ func (c *Client) DeletePlanScheme(planSchemeID string) error {
 
 // CreateSchedule creates a broadcast schedule on the Hikvision device.
 // Uses AddPlanScheme endpoint with the provided payload.
-func (c *Client) CreateSchedule(payload *AddPlanSchemePayload) error {
+func (c *Client) CreateSchedule(payload interface{}) error {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/AddPlanScheme?format=json"
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -259,7 +259,7 @@ func (c *Client) CreateSchedule(payload *AddPlanSchemePayload) error {
 
 // CreateScheduleWithRetry creates a broadcast schedule with retry logic for device-busy scenarios.
 // Retries up to maxRetries times with exponential backoff for 4xx/5xx errors.
-func (c *Client) CreateScheduleWithRetry(payload *AddPlanSchemePayload, maxRetries int) error {
+func (c *Client) CreateScheduleWithRetry(payload interface{}, maxRetries int) error {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/AddPlanScheme?format=json"
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -331,6 +331,7 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "+07:00" or "+08:00".
+// Uses map[string]interface{} payload (proven to work with Hikvision firmware).
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
@@ -338,36 +339,36 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + timezoneOffset
 	dateStr := now.Format("2006-01-02")
 
-	payload := &AddPlanSchemePayload{
-		BroadcastPlanSchemeList: []BroadcastPlanScheme{
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
 			{
-				PlanSchemeID:   fmt.Sprintf("broadcast_now_%d", now.Unix()),
-				Enabled:        true,
-				PlanSchemeName: "Broadcast Now",
-				AudioOutID:     []int{1},
-				DailyScheduleInfo: &DailyScheduleInfo{
-					StartTime: dateStr,
-					StopTime:  dateStr,
-					DailyScheduleList: []ScheduleEntry{
+				"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
+				"enabled":        true,
+				"planSchemeName": "Broadcast Now",
+				"audioOutID":     []int{1},
+				"dailyScheduleInfo": map[string]interface{}{
+					"startTime": dateStr,
+					"stopTime":  dateStr,
+					"dailyScheduleList": []map[string]interface{}{
 						{
-							BeginTime: beginTime,
-							EndTime:   endTime,
-							PlayMode:  "order",
-							Operation: Operation{
-								AudioSource:   "customAudio",
-								CustomAudioID: []int{audioID},
-								AudioLevel:    5,
-								AudioVolume:   volume,
+							"beginTime": beginTime,
+							"endTime":   endTime,
+							"playMode":  "order",
+							"operation": map[string]interface{}{
+								"audioSource":   "customAudio",
+								"customAudioID": []int{audioID},
+								"audioLevel":    5,
+								"audioVolume":   volume,
 							},
 						},
 					},
 				},
 			},
 		},
-		TerminalInfoList: []TerminalInfo{
+		"terminalInfoList": []map[string]interface{}{
 			{
-				TerminalID: 1,
-				AudioOutID: []int{1},
+				"terminalID": 1,
+				"audioOutID": []int{1},
 			},
 		},
 	}
