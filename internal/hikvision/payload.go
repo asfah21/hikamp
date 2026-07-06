@@ -1,8 +1,12 @@
 package hikvision
 
 // Payload structs for Hikvision ISAPI AddPlanScheme endpoint.
-// Using structs instead of map[string]interface{} to control JSON key ordering,
-// as some Hikvision firmware versions may be sensitive to key order.
+// IMPORTANT: Hikvision Web UI uses NON-standard JSON field naming.
+// Key differences from standard camelCase:
+//   - "dailyscheduleInfo" (lowercase 's') — NOT "dailyScheduleInfo"
+//   - No "planSchemeName" field
+//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
+//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
 
 // AddPlanSchemePayload is the top-level request payload
 type AddPlanSchemePayload struct {
@@ -11,16 +15,17 @@ type AddPlanSchemePayload struct {
 }
 
 // BroadcastPlanScheme represents a single plan scheme entry
+// Note: Web UI does NOT send "planSchemeName" field
 type BroadcastPlanScheme struct {
 	PlanSchemeID       string              `json:"planSchemeID"`
 	Enabled            bool                `json:"enabled"`
-	PlanSchemeName     string              `json:"planSchemeName"`
-	DailyScheduleInfo  *DailyScheduleInfo  `json:"dailyScheduleInfo,omitempty"`
-	WeeklyScheduleInfo *WeeklyScheduleInfo `json:"weeklyScheduleInfo,omitempty"`
 	AudioOutID         []int               `json:"audioOutID"`
+	DailyScheduleInfo  *DailyScheduleInfo  `json:"dailyscheduleInfo,omitempty"`
+	WeeklyScheduleInfo *WeeklyScheduleInfo `json:"weeklyScheduleInfo,omitempty"`
 }
 
 // DailyScheduleInfo contains daily schedule configuration
+// Note: JSON tag uses "dailyscheduleInfo" (lowercase 's') to match Web UI
 type DailyScheduleInfo struct {
 	StartTime         string          `json:"startTime"`
 	StopTime          string          `json:"stopTime"`

@@ -71,23 +71,25 @@ Verified from official Hikvision Web UI Network request.
 
 ---
 
-## Payload Example
+## Payload Example (from official Hikvision Web UI)
 
+**IMPORTANT:** Hikvision Web UI uses NON-standard JSON field naming. Always verify against actual Web UI network traffic.
+
+```json
 {
   "broadcastPlanSchemeList": [
     {
       "planSchemeID": "Adzan Dzuhur",
       "enabled": true,
-      "planSchemeName": "Adzan Dzuhur",
 
-      "dailyScheduleInfo": {
-        "startTime": "2026-07-01",
-        "stopTime": "2026-12-31",
+      "dailyscheduleInfo": {
+        "startTime": "2026-07-01 08:00",
+        "stopTime": "2026-12-31 08:00",
 
         "dailyScheduleList": [
           {
-            "beginTime": "12:02:00+08:00",
-            "endTime": "12:05:51+08:00",
+            "beginTime": "12:02:00 08:00",
+            "endTime": "12:05:51 08:00",
 
             "playMode": "order",
 
@@ -112,6 +114,13 @@ Verified from official Hikvision Web UI Network request.
     }
   ]
 }
+```
+
+### Key differences from standard camelCase:
+1. **`"dailyscheduleInfo"`** — lowercase 's', NOT `"dailyScheduleInfo"`
+2. **No `"planSchemeName"`** — Web UI does NOT send this field
+3. **`startTime`/`stopTime`** format: `"YYYY-MM-DD HH:MM"` (with time component)
+4. **`beginTime`/`endTime`** format: `"HH:MM:SS HH:MM"` (space separator, NOT `+`)
 
 ---
 

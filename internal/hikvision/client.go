@@ -185,6 +185,7 @@ func (c *Client) SearchPlanScheme() (interface{}, error) {
 
 // DeletePlanScheme deletes a broadcast plan scheme by its ID.
 // Uses the ModifyPlanScheme endpoint with an empty enabled=false payload to remove it.
+// Uses the same field naming convention as the Web UI ("dailyscheduleInfo" lowercase 's').
 func (c *Client) DeletePlanScheme(planSchemeID string) error {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json"
 
@@ -192,13 +193,13 @@ func (c *Client) DeletePlanScheme(planSchemeID string) error {
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			{
-				"planSchemeID":   planSchemeID,
-				"enabled":        false,
-				"planSchemeName": planSchemeID,
-				"audioOutID":     []int{1},
-				"dailyScheduleInfo": map[string]interface{}{
-					"startTime":         "2000-01-01",
-					"stopTime":          "2000-01-01",
+				"planSchemeID": planSchemeID,
+				"enabled":      false,
+				"audioOutID":   []int{1},
+				// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
+				"dailyscheduleInfo": map[string]interface{}{
+					"startTime":         "2000-01-01 00:00",
+					"stopTime":          "2000-01-01 00:00",
 					"dailyScheduleList": []map[string]interface{}{},
 				},
 			},
@@ -331,22 +332,28 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "+07:00" or "+08:00".
-// Uses map[string]interface{} payload (proven to work with Hikvision firmware).
+// Uses map[string]interface{} payload matching the official Hikvision Web UI format.
+// Key differences from standard camelCase:
+//   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
+//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
+//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
-	beginTime := now.Format("15:04:05") + timezoneOffset
-	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + timezoneOffset
-	dateStr := now.Format("2006-01-02")
+	// Hikvision Web UI uses SPACE separator between time and timezone
+	beginTime := now.Format("15:04:05") + " " + timezoneOffset
+	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + " " + timezoneOffset
+	// Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
+	dateStr := now.Format("2006-01-02 15:04")
 
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			{
-				"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
-				"enabled":        true,
-				"planSchemeName": "Broadcast Now",
-				"audioOutID":     []int{1},
-				"dailyScheduleInfo": map[string]interface{}{
+				"planSchemeID": fmt.Sprintf("broadcast_now_%d", now.Unix()),
+				"enabled":      true,
+				"audioOutID":   []int{1},
+				// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
+				"dailyscheduleInfo": map[string]interface{}{
 					"startTime": dateStr,
 					"stopTime":  dateStr,
 					"dailyScheduleList": []map[string]interface{}{

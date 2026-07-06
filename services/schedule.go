@@ -134,11 +134,12 @@ func getTimezoneOffset(tzName string) string {
 	return fmt.Sprintf("-%02d:%02d", -hours, mins)
 }
 
-// formatTimeForHikvision converts a time string to "HH:MM:SS+HH:MM" format.
+// formatTimeForHikvision converts a time string to "HH:MM:SS HH:MM" format.
+// Hikvision Web UI uses SPACE separator (not "+") between time and timezone.
 // Handles various input formats:
-//   - "HH:MM" -> "HH:MM:SS+08:00"
-//   - "HH:MM:SS" -> "HH:MM:SS+08:00"
-//   - "HH:MM:SS+08:00" -> "HH:MM:SS+08:00" (already formatted, timezone is replaced)
+//   - "HH:MM" -> "HH:MM:SS HH:MM"
+//   - "HH:MM:SS" -> "HH:MM:SS HH:MM"
+//   - "HH:MM:SS+08:00" -> "HH:MM:SS HH:MM" (timezone is replaced with space format)
 //   - "" -> returns empty string (caller should validate)
 func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	if timeStr == "" {
@@ -149,33 +150,41 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
 	timeStr = re.ReplaceAllString(timeStr, "")
 
+	// Also remove any existing timezone with space separator (e.g., " 08:00" at the end)
+	reSpace := regexp.MustCompile(` \d{2}:\d{2}$`)
+	timeStr = reSpace.ReplaceAllString(timeStr, "")
+
 	// Count colons to determine format
 	parts := strings.Split(timeStr, ":")
 	switch len(parts) {
 	case 2:
-		// HH:MM -> HH:MM:SS
-		return fmt.Sprintf("%s:%s:00%s", parts[0], parts[1], timezoneOffset)
+		// HH:MM -> HH:MM:SS HH:MM (space separator)
+		return fmt.Sprintf("%s:%s:00 %s", parts[0], parts[1], timezoneOffset)
 	case 3:
-		// HH:MM:SS -> HH:MM:SS
-		return fmt.Sprintf("%s:%s:%s%s", parts[0], parts[1], parts[2], timezoneOffset)
+		// HH:MM:SS -> HH:MM:SS HH:MM (space separator)
+		return fmt.Sprintf("%s:%s:%s %s", parts[0], parts[1], parts[2], timezoneOffset)
 	default:
-		// Unknown format, return as-is with timezone
-		return timeStr + timezoneOffset
+		// Unknown format, return as-is with timezone (space separator)
+		return timeStr + " " + timezoneOffset
 	}
 }
 
 // buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model.
-// Uses map[string]interface{} payload (proven to work with Hikvision firmware).
+// Uses map[string]interface{} payload matching the official Hikvision Web UI format.
+// Key differences from standard camelCase:
+//   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
+//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
+//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
 func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
-	// Format times with proper timezone offset for Hikvision API
+	// Format times using Hikvision Web UI format: "HH:MM:SS HH:MM" (space separator)
 	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
 	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
 
-	// Use today's date and a near future date for startTime/stopTime in dailyScheduleInfo
-	// Format: YYYY-MM-DD (date only, not time)
-	// stopTime is set to 7 days from now to match the verified working payload pattern
-	today := time.Now().Format("2006-01-02")
-	futureDate := time.Now().AddDate(0, 0, 7).Format("2006-01-02")
+	// Hikvision Web UI uses "YYYY-MM-DD HH:MM" format for startTime/stopTime
+	// (with time component, not date-only)
+	now := time.Now()
+	today := now.Format("2006-01-02 15:04")
+	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02 15:04")
 
 	// Build schedule list entry
 	scheduleEntry := map[string]interface{}{
@@ -191,16 +200,17 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	}
 
 	// Build the plan scheme
+	// Note: Web UI does NOT send "planSchemeName" field
 	planScheme := map[string]interface{}{
-		"planSchemeID":   planSchemeID,
-		"enabled":        s.Enabled,
-		"planSchemeName": s.Name,
-		"audioOutID":     []int{1},
+		"planSchemeID": planSchemeID,
+		"enabled":      s.Enabled,
+		"audioOutID":   []int{1},
 	}
 
 	switch s.ScheduleType {
 	case "daily":
-		planScheme["dailyScheduleInfo"] = map[string]interface{}{
+		// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
+		planScheme["dailyscheduleInfo"] = map[string]interface{}{
 			"startTime": today,
 			"stopTime":  futureDate,
 			"dailyScheduleList": []map[string]interface{}{
@@ -227,7 +237,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		planScheme["dailyScheduleInfo"] = map[string]interface{}{
+		// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
+		planScheme["dailyscheduleInfo"] = map[string]interface{}{
 			"startTime": dateStr,
 			"stopTime":  dateStr,
 			"dailyScheduleList": []map[string]interface{}{
