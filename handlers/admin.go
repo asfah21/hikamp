@@ -13,6 +13,31 @@ import (
 	"strings"
 )
 
+// jsonEscape escapes a string for safe embedding in a JSON string value.
+// This prevents "Bad control character" errors when error messages contain
+// quotes, newlines, or other special characters.
+func jsonEscape(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	return s
+}
+
+// setHXTriggerToast sets the HX-Trigger header with a JSON toast message.
+// The message is automatically JSON-escaped to prevent invalid JSON errors.
+// If reload is true, adds "reload":"true" to trigger a page reload.
+func setHXTriggerToast(w http.ResponseWriter, message string, reload ...bool) {
+	escaped := jsonEscape(message)
+	doReload := len(reload) > 0 && reload[0]
+	if doReload {
+		w.Header().Set("HX-Trigger", `{"toast":"`+escaped+`","reload":"true"}`)
+	} else {
+		w.Header().Set("HX-Trigger", `{"toast":"`+escaped+`"}`)
+	}
+}
+
 // AdminDashboard renders the dashboard page
 func AdminDashboard(w http.ResponseWriter, r *http.Request) {
 	data, err := services.GetDashboardData()
@@ -56,7 +81,7 @@ func AdminDevicesCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Device created successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Device created successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -109,7 +134,7 @@ func AdminDevicesEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Device updated successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Device updated successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -153,7 +178,7 @@ func AdminDevicesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"toast":"Device deleted successfully","reload":"true"}`)
+	setHXTriggerToast(w, "Device deleted successfully", true)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -174,7 +199,7 @@ func AdminDevicesTestConnection(w http.ResponseWriter, r *http.Request) {
 
 	info, err := services.TestDeviceConnection(device.IPAddress, device.Port, device.Username, device.Password)
 	if err != nil {
-		w.Header().Set("HX-Trigger", `{"toast":"Connection failed: `+err.Error()+`"}`)
+		setHXTriggerToast(w, "Connection failed: "+err.Error())
 		w.WriteHeader(http.StatusOK)
 		// Render failure modal
 		renderTestResultModal(w, device.Name, "Connection Failed", "error", nil)
@@ -184,7 +209,7 @@ func AdminDevicesTestConnection(w http.ResponseWriter, r *http.Request) {
 	// Update device status
 	services.SyncDeviceInfo(id)
 
-	w.Header().Set("HX-Trigger", `{"toast":"Connection successful"}`)
+	setHXTriggerToast(w, "Connection successful")
 	renderTestResultModal(w, device.Name, "Online", "success", info)
 }
 
@@ -328,7 +353,7 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Audio uploaded successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Audio uploaded successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -366,7 +391,7 @@ func AdminAudioDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"toast":"Audio deleted successfully","reload":"true"}`)
+	setHXTriggerToast(w, "Audio deleted successfully", true)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -417,7 +442,7 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Schedule created successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Schedule created successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -481,7 +506,7 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Schedule updated successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Schedule updated successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -533,7 +558,7 @@ func AdminSchedulesDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"toast":"Schedule deleted successfully","reload":"true"}`)
+	setHXTriggerToast(w, "Schedule deleted successfully", true)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -548,12 +573,12 @@ func AdminSchedulesSync(w http.ResponseWriter, r *http.Request) {
 
 	err = services.SyncScheduleToDevice(id)
 	if err != nil {
-		w.Header().Set("HX-Trigger", `{"toast":"Sync failed: `+err.Error()+`"}`)
+		setHXTriggerToast(w, "Sync failed: "+err.Error())
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	w.Header().Set("HX-Trigger", `{"toast":"Schedule synced to device successfully"}`)
+	setHXTriggerToast(w, "Schedule synced to device successfully")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -681,7 +706,7 @@ func AdminPrayerGenerate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		location, err := services.GetPrayerLocation()
 		if err != nil {
-			w.Header().Set("HX-Trigger", `{"toast":"Please set a location first"}`)
+			setHXTriggerToast(w, "Please set a location first")
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -696,12 +721,12 @@ func AdminPrayerGenerate(w http.ResponseWriter, r *http.Request) {
 
 		err = services.AutoGeneratePrayerTimes(location, days)
 		if err != nil {
-			w.Header().Set("HX-Trigger", `{"toast":"Failed to generate prayer times: `+err.Error()+`"}`)
+			setHXTriggerToast(w, "Failed to generate prayer times: "+err.Error())
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer times generated for `+strconv.Itoa(days)+` days","reload":"true"}`)
+		setHXTriggerToast(w, "Prayer times generated for "+strconv.Itoa(days)+" days", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -743,7 +768,7 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 			}()
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer broadcast settings saved and synced to devices","reload":"true"}`)
+		setHXTriggerToast(w, "Prayer broadcast settings saved and synced to devices", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -754,7 +779,7 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		location, err := services.GetPrayerLocation()
 		if err != nil {
-			w.Header().Set("HX-Trigger", `{"toast":"Please set a location first"}`)
+			setHXTriggerToast(w, "Please set a location first")
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -769,7 +794,7 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 
 		err = services.CreatePrayerSchedules(location, days)
 		if err != nil {
-			w.Header().Set("HX-Trigger", `{"toast":"Failed to create schedules: `+err.Error()+`"}`)
+			setHXTriggerToast(w, "Failed to create schedules: "+err.Error())
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -784,7 +809,7 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 			}
 		}()
 
-		w.Header().Set("HX-Trigger", `{"toast":"Prayer schedules created for `+strconv.Itoa(days)+` days and synced to devices","reload":"true"}`)
+		setHXTriggerToast(w, "Prayer schedules created for "+strconv.Itoa(days)+" days and synced to devices", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -809,7 +834,7 @@ func AdminSettingsSave(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		w.Header().Set("HX-Trigger", `{"toast":"Settings saved successfully","reload":"true"}`)
+		setHXTriggerToast(w, "Settings saved successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -859,7 +884,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			}
 			services.CreateLog(log)
 
-			w.Header().Set("HX-Trigger", `{"toast":"Broadcast failed: `+err.Error()+`"}`)
+			setHXTriggerToast(w, "Broadcast failed: "+err.Error())
 			w.WriteHeader(http.StatusOK)
 			return
 		}
@@ -877,7 +902,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 		services.CreateLog(log)
 
-		w.Header().Set("HX-Trigger", `{"toast":"Broadcast started successfully"}`)
+		setHXTriggerToast(w, "Broadcast started successfully")
 		w.WriteHeader(http.StatusOK)
 		return
 	}
