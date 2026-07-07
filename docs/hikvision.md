@@ -331,27 +331,57 @@ List all uploaded audio files on the device.
 
 ---
 
-## Unknown Endpoints
+## Verified Endpoints (from Web UI Network)
 
-The following endpoints are NOT verified.
+### Stop Broadcast
 
-SearchPlanScheme
+StopBroadcast is implemented using SearchPlanScheme + ModifyPlanScheme.
 
-ModifyPlanScheme
+It searches all active schedules, then disables each one via ModifyPlanScheme with enabled=false.
 
-DeletePlanScheme
+This stops audio output without deleting the schedules.
 
-StopBroadcast
+Endpoint: POST /ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json
 
-When implementing these methods:
+Payload:
+```json
+{
+  "broadcastPlanSchemeList": [
+    {
+      "planSchemeID": "<scheme-id>",
+      "enabled": false,
+      "audioOutID": [1],
+      "dailyscheduleInfo": {
+        "startTime": "2000-01-01 00:00",
+        "stopTime": "2000-01-01 00:00",
+        "dailyScheduleList": []
+      }
+    }
+  ],
+  "terminalInfoList": [
+    {
+      "terminalID": 1,
+      "audioOutID": [1]
+    }
+  ]
+}
+```
 
-1. First inspect Hikvision Web UI Network requests.
+### Search Plan Scheme
 
-2. Reuse discovered endpoint.
+Endpoint: GET /ISAPI/VideoIntercom/broadcast/SearchPlanScheme?format=json
 
-3. Never guess endpoint URLs.
+Returns JSON with list of all plan schemes.
 
-4. Every new endpoint must be documented inside this project.
+### Modify Plan Scheme
+
+Endpoint: POST /ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json
+
+Used for both deleting (enabled=false, empty schedule) and disabling schedules.
+
+### Delete Plan Scheme
+
+Implemented via ModifyPlanScheme with enabled=false and empty schedule list.
 
 ---
 

@@ -19,6 +19,7 @@
     <table class="table">
         <thead>
             <tr>
+                <th>No</th>
                 <th>Name</th>
                 <th>Category</th>
                 <th>Duration</th>
@@ -27,45 +28,46 @@
             </tr>
         </thead>
         <tbody>
-            {{range .Data}}
+            {{range $i, $file := .Data}}
             <tr>
-                <td><strong>{{.Name}}</strong></td>
-                <td><span class="badge badge-neutral">{{.Category}}</span></td>
+                <td style="text-align: center; color: var(--inkMuted);">{{add $i 1}}</td>
+                <td><strong>{{$file.Name}}</strong></td>
+                <td><span class="badge badge-neutral">{{$file.Category}}</span></td>
                 <td>
-                    {{if .DurationStr}}
-                        {{.DurationStr}}
-                    {{else if .Duration}}
-                        {{$m := div .Duration 60}}{{$s := mod .Duration 60}}
+                    {{if $file.DurationStr}}
+                        {{$file.DurationStr}}
+                    {{else if $file.Duration}}
+                        {{$m := div $file.Duration 60}}{{$s := mod $file.Duration 60}}
                         {{$m}}m {{$s}}s
                     {{else}}
                         -
                     {{end}}
                 </td>
                 <td>
-                    {{if geInt64 .FileSize 1048576}}
-                        {{divInt64 .FileSize 1048576}} MB
-                    {{else if geInt64 .FileSize 1024}}
-                        {{divInt64 .FileSize 1024}} KB
+                    {{if geInt64 $file.FileSize 1048576}}
+                        {{divInt64 $file.FileSize 1048576}} MB
+                    {{else if geInt64 $file.FileSize 1024}}
+                        {{divInt64 $file.FileSize 1024}} KB
                     {{else}}
-                        {{.FileSize}} bytes
+                        {{$file.FileSize}} bytes
                     {{end}}
                 </td>
                 <td>
                     <div class="action-buttons" style="display: flex; gap: 0.25rem;">
-                        <a href="/admin/audio/download/{{.ID}}" class="btn btn-sm btn-ghost" title="Play" target="_blank">
+                        <a href="/admin/audio/download/{{$file.ID}}" class="btn btn-sm btn-ghost" title="Play" target="_blank">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         </a>
-                        <a href="/admin/audio/download/{{.ID}}" class="btn btn-sm btn-ghost" title="Download" download="{{.Name}}">
+                        <a href="/admin/audio/download/{{$file.ID}}" class="btn btn-sm btn-ghost" title="Download" download="{{$file.Name}}">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         </a>
-                        <button class="btn btn-sm btn-ghost" hx-delete="/admin/audio/delete/{{.ID}}" hx-confirm="Delete this audio file?" hx-trigger="click" title="Delete" style="color: var(--error);">
+                        <button class="btn btn-sm btn-ghost" hx-delete="/admin/audio/delete/{{$file.ID}}" hx-confirm="Delete this audio file?" hx-trigger="click" title="Delete" style="color: var(--error);">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                     </div>
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
+            <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
             {{end}}
         </tbody>
     </table>

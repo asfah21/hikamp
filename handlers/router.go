@@ -56,6 +56,7 @@ func Router() http.Handler {
 	mux.HandleFunc("/admin/settings", requireAuth(AdminSettings))
 	mux.HandleFunc("/admin/settings/save", requireAuth(AdminSettingsSave))
 	mux.HandleFunc("/admin/broadcast-now", requireAuth(AdminBroadcastNow))
+	mux.HandleFunc("/admin/stop-broadcast", requireAuth(AdminStopBroadcast))
 
 	// Redirect /admin to /admin/dashboard
 	mux.HandleFunc("/admin", func(w http.ResponseWriter, r *http.Request) {

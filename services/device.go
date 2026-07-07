@@ -86,3 +86,15 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 
 	return client.BroadcastNowWithTimezone(*audioFile.HikvisionAudioID, volume, durationMinutes, timezoneOffset)
 }
+
+// StopBroadcastOnDevice stops all active broadcasts on a device.
+// This disables all active schedules without deleting them.
+func StopBroadcastOnDevice(deviceID int) error {
+	device, err := repositories.GetDeviceByID(deviceID)
+	if err != nil {
+		return fmt.Errorf("device not found: %w", err)
+	}
+
+	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+	return client.StopBroadcast()
+}

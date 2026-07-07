@@ -1106,6 +1106,118 @@ func AdminSettingsSave(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// AdminStopBroadcast handles stopping all broadcasts on a device
+func AdminStopBroadcast(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
+
+		if deviceID == 0 {
+			// If no device specified, stop on all devices
+			devices, err := services.GetAllDevices()
+			if err != nil {
+				setHXTriggerToast(w, "Failed to get devices: "+err.Error())
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			var lastErr error
+			stopped := 0
+			for _, d := range devices {
+				if !d.Enabled {
+					continue
+				}
+				err := services.StopBroadcastOnDevice(d.ID)
+				if err != nil {
+					log.Printf("[STOP BROADCAST] Failed on device %s: %v", d.Name, err)
+					lastErr = err
+					continue
+				}
+				stopped++
+			}
+
+			if stopped > 0 {
+				setHXTriggerToast(w, fmt.Sprintf("Broadcast stopped on %d device(s)", stopped))
+			} else if lastErr != nil {
+				setHXTriggerToast(w, "Failed to stop broadcast: "+lastErr.Error())
+			} else {
+				setHXTriggerToast(w, "No active broadcasts found")
+			}
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Stop on specific device
+		err := services.StopBroadcastOnDevice(deviceID)
+		if err != nil {
+			setHXTriggerToast(w, "Failed to stop broadcast: "+err.Error())
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		setHXTriggerToast(w, "Broadcast stopped successfully")
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// GET: render stop broadcast form as modal
+	devices, _ := services.GetAllDevices()
+	renderStopBroadcastModal(w, devices)
+}
+
+// renderStopBroadcastModal renders the stop broadcast confirmation modal
+func renderStopBroadcastModal(w http.ResponseWriter, devices []models.Device) {
+	deviceOptions := ""
+	for _, d := range devices {
+		deviceOptions += fmt.Sprintf(`<option value="%d">%s (%s)</option>`, d.ID, d.Name, d.IPAddress)
+	}
+	if len(devices) == 0 {
+		deviceOptions = `<option value="" disabled>No devices available</option>`
+	}
+
+	html := fmt.Sprintf(`
+<div id="modal-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2>Stop Broadcast</h2>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem; color: var(--inkMuted);">
+                Stop all active broadcasts on a device. This will disable active schedules
+                without deleting them. Select a specific device or stop all devices.
+            </p>
+            <form id="stop-form" hx-post="/admin/stop-broadcast" hx-target="#modal-container" hx-swap="innerHTML" hx-indicator="#stop-spinner">
+                <div class="form-group">
+                    <label class="form-label" for="device_id">Device</label>
+                    <select class="input-field" id="device_id" name="device_id">
+                        <option value="0">All Devices</option>
+                        %s
+                    </select>
+                </div>
+                <div class="form-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" class="btn btn-danger" id="stop-btn">
+                        <span id="stop-spinner" class="htmx-indicator" style="display: inline-flex; align-items: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; animation: spin 1s linear infinite;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Stopping...
+                        </span>
+                        <span class="htmx-indicator-hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                            Stop Broadcast
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>`, deviceOptions)
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, html)
+}
+
 // AdminBroadcastNow handles manual broadcast
 func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {

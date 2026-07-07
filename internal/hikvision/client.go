@@ -530,9 +530,96 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	return c.CreateSchedule(payload)
 }
 
-// StopBroadcast stops the current broadcast
+// StopBroadcast stops all active broadcasts on the device.
+// Uses SearchPlanScheme to find all active schedules, then disables them
+// via ModifyPlanScheme with enabled=false.
+// This stops audio output without deleting the schedules.
 func (c *Client) StopBroadcast() error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("StopBroadcast not yet implemented - inspect Hikvision Web UI Network tab first")
+	// Search for all existing plan schemes
+	schemes, err := c.SearchPlanScheme()
+	if err != nil {
+		return fmt.Errorf("failed to search plan schemes: %w", err)
+	}
+
+	// Parse the response to extract planSchemeIDs
+	schemesMap, ok := schemes.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected response format from SearchPlanScheme")
+	}
+
+	list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{})
+	if !ok || len(list) == 0 {
+		// No schedules found, nothing to stop
+		return nil
+	}
+
+	var lastErr error
+	for _, item := range list {
+		scheme, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		planSchemeID, ok := scheme["planSchemeID"].(string)
+		if !ok || planSchemeID == "" {
+			continue
+		}
+
+		// Disable this schedule via ModifyPlanScheme
+		err := c.disablePlanScheme(planSchemeID)
+		if err != nil {
+			log.Printf("[HIKVISION] Failed to disable schedule '%s': %v", planSchemeID, err)
+			lastErr = err
+			continue
+		}
+		log.Printf("[HIKVISION] Disabled schedule '%s'", planSchemeID)
+	}
+
+	return lastErr
+}
+
+// disablePlanScheme disables a single plan scheme by ID.
+// Uses ModifyPlanScheme with enabled=false to stop it without deleting.
+func (c *Client) disablePlanScheme(planSchemeID string) error {
+	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json"
+
+	payload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
+			{
+				"planSchemeID": planSchemeID,
+				"enabled":      false,
+				"audioOutID":   []int{1},
+				"dailyscheduleInfo": map[string]interface{}{
+					"startTime":         "2000-01-01 00:00",
+					"stopTime":          "2000-01-01 00:00",
+					"dailyScheduleList": []map[string]interface{}{},
+				},
+			},
+		},
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal disable payload: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
+	if err != nil {
+		return fmt.Errorf("disable plan scheme request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		logFailedResponse("POST", url, string(jsonData), resp, body)
+		return fmt.Errorf("disable plan scheme failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
