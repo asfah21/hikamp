@@ -7,6 +7,7 @@ import (
 	"ego/services"
 	"ego/templates"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -265,6 +266,60 @@ func renderTestResultModal(w http.ResponseWriter, deviceName string, status stri
 	fmt.Fprint(w, html)
 }
 
+// renderAudioSyncModal renders the sync audio modal
+func renderAudioSyncModal(w http.ResponseWriter, devices []models.Device) {
+	deviceOptions := ""
+	for _, d := range devices {
+		deviceOptions += fmt.Sprintf(`<option value="%d">%s (%s)</option>`, d.ID, d.Name, d.IPAddress)
+	}
+	if len(devices) == 0 {
+		deviceOptions = `<option value="" disabled>No devices available</option>`
+	}
+
+	html := fmt.Sprintf(`
+<div id="modal-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>Sync Audio from Device</h2>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem; color: var(--inkMuted);">
+                Fetch all audio files from a Hikvision device and sync them to the local database.
+                Existing audio files will be updated, new ones will be added.
+            </p>
+            <form id="sync-form" hx-post="/admin/audio/sync" hx-target="#modal-container" hx-swap="innerHTML" hx-indicator="#sync-spinner">
+                <div class="form-group">
+                    <label class="form-label" for="device_id">Device</label>
+                    <select class="input-field" id="device_id" name="device_id" required>
+                        <option value="">Select a device...</option>
+                        %s
+                    </select>
+                </div>
+                <div class="form-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" class="btn btn-primary" id="sync-btn">
+                        <span id="sync-spinner" class="htmx-indicator" style="display: inline-flex; align-items: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; animation: spin 1s linear infinite;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Syncing...
+                        </span>
+                        <span class="htmx-indicator-hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Sync from Device
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>`, deviceOptions)
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, html)
+}
+
 // AdminAudio renders the audio library page
 func AdminAudio(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
@@ -436,27 +491,9 @@ func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// GET: render sync form
+	// GET: render sync form as modal
 	devices, _ := services.GetAllDevices()
-	data := map[string]interface{}{
-		"Devices": devices,
-	}
-
-	if r.Header.Get("HX-Request") == "true" {
-		user, _ := r.Context().Value("user").(*models.User)
-		if user == nil {
-			user = &models.User{Name: "Admin", Username: "admin"}
-		}
-		pageData := templates.PageData{
-			Title: "Sync Audio from Device",
-			User:  user,
-			Data:  data,
-		}
-		templates.RenderPartial(w, "dashboard", "audio_sync", pageData)
-		return
-	}
-
-	RenderDashboard(w, r, "audio_sync", data)
+	renderAudioSyncModal(w, devices)
 }
 
 // AdminAudioDelete handles audio file deletion
@@ -476,6 +513,66 @@ func AdminAudioDelete(w http.ResponseWriter, r *http.Request) {
 
 	setHXTriggerToast(w, "Audio deleted successfully", true)
 	w.WriteHeader(http.StatusOK)
+}
+
+// AdminAudioDownload streams audio from Hikvision device to the browser.
+// Uses the device's HTTP endpoint to fetch the audio file and proxy it.
+func AdminAudioDownload(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/admin/audio/download/")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID", http.StatusBadRequest)
+		return
+	}
+
+	audioFile, err := services.GetAudioFileByID(id)
+	if err != nil {
+		http.Error(w, "Audio not found", http.StatusNotFound)
+		return
+	}
+
+	if audioFile.DeviceID == nil || *audioFile.DeviceID == 0 {
+		http.Error(w, "Audio has no associated device", http.StatusNotFound)
+		return
+	}
+
+	device, err := services.GetDeviceByID(*audioFile.DeviceID)
+	if err != nil {
+		http.Error(w, "Device not found", http.StatusNotFound)
+		return
+	}
+
+	// Build the audio URL on the Hikvision device
+	// Hikvision serves audio files via HTTP at the customAudioPath
+	audioURL := fmt.Sprintf("http://%s:%d%s", device.IPAddress, device.Port, *audioFile.HikvisionPath)
+
+	// Create a digest client and fetch the audio
+	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+	req, err := http.NewRequest("GET", audioURL, nil)
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	resp, err := client.DigestClient.Do(req)
+	if err != nil {
+		http.Error(w, "Failed to fetch audio from device: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		http.Error(w, "Device returned error", http.StatusBadGateway)
+		return
+	}
+
+	// Set headers for download/playback
+	w.Header().Set("Content-Type", resp.Header.Get("Content-Type"))
+	w.Header().Set("Content-Length", resp.Header.Get("Content-Length"))
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, audioFile.Name))
+
+	// Stream the audio data
+	io.Copy(w, resp.Body)
 }
 
 // AdminSchedules renders the broadcast schedule page

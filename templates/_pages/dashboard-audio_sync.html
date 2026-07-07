@@ -1,34 +1,42 @@
-{{define "content"}}
-<div class="page-header">
-    <h2>Sync Audio from Device</h2>
-</div>
-
-<div class="card" style="max-width: 500px; margin: 2rem auto;">
-    <div class="card-body">
-        <p style="margin-bottom: 1rem; color: var(--inkMuted);">
-            Fetch all audio files from a Hikvision device and sync them to the local database.
-            Existing audio files will be updated, new ones will be added.
-        </p>
-        <form hx-post="/admin/audio/sync" hx-target="#main-content" hx-swap="innerHTML">
-            <div class="form-group">
-                <label class="form-label" for="device_id">Device</label>
-                <select class="input-field" id="device_id" name="device_id" required>
-                    <option value="">Select a device...</option>
-                    {{range .Data.Devices}}
-                    <option value="{{.ID}}">{{.Name}} ({{.IPAddress}})</option>
-                    {{else}}
-                    <option value="" disabled>No devices available</option>
-                    {{end}}
-                </select>
-            </div>
-            <div class="form-actions" style="margin-top: 1.5rem;">
-                <button type="submit" class="btn btn-primary">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-                    Sync from Device
-                </button>
-                <a href="/admin/audio" class="btn btn-secondary" hx-get="/admin/audio" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">Cancel</a>
-            </div>
-        </form>
+<div id="modal-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>Sync Audio from Device</h2>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem; color: var(--inkMuted);">
+                Fetch all audio files from a Hikvision device and sync them to the local database.
+                Existing audio files will be updated, new ones will be added.
+            </p>
+            <form id="sync-form" hx-post="/admin/audio/sync" hx-target="#modal-container" hx-swap="innerHTML" hx-indicator="#sync-spinner">
+                <div class="form-group">
+                    <label class="form-label" for="device_id">Device</label>
+                    <select class="input-field" id="device_id" name="device_id" required>
+                        <option value="">Select a device...</option>
+                        {{range .Data.Devices}}
+                        <option value="{{.ID}}">{{.Name}} ({{.IPAddress}})</option>
+                        {{else}}
+                        <option value="" disabled>No devices available</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="form-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" class="btn btn-primary" id="sync-btn">
+                        <span id="sync-spinner" class="htmx-indicator" style="display: inline-flex; align-items: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; animation: spin 1s linear infinite;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Syncing...
+                        </span>
+                        <span class="htmx-indicator-hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Sync from Device
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
-{{end}}

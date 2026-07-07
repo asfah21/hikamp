@@ -36,6 +36,7 @@ func Router() http.Handler {
 	mux.HandleFunc("/admin/audio/upload", requireAuth(AdminAudioUpload))
 	mux.HandleFunc("/admin/audio/sync", requireAuth(AdminAudioSync))
 	mux.HandleFunc("/admin/audio/delete/", requireAuth(AdminAudioDelete))
+	mux.HandleFunc("/admin/audio/download/", requireAuth(AdminAudioDownload))
 	mux.HandleFunc("/admin/schedules", requireAuth(AdminSchedules))
 	mux.HandleFunc("/admin/schedules/create", requireAuth(AdminSchedulesCreate))
 	mux.HandleFunc("/admin/schedules/edit/", requireAuth(AdminSchedulesEdit))

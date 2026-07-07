@@ -3,6 +3,33 @@
    Separated from main style.css
    ============================================================ */
 
+/* HTMX Indicator — hidden by default, shown during HTMX requests */
+.htmx-indicator {
+    display: none !important;
+}
+.htmx-request .htmx-indicator {
+    display: inline-flex !important;
+}
+.htmx-request.htmx-indicator {
+    display: inline-flex !important;
+}
+.htmx-indicator-hidden {
+    display: inline-flex;
+}
+.htmx-request .htmx-indicator-hidden {
+    display: none !important;
+}
+.htmx-request.htmx-indicator-hidden {
+    display: none !important;
+}
+
+
+/* Spin animation for loading indicators */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* ============================================================
    DASHBOARD LAYOUT
    ============================================================ */
