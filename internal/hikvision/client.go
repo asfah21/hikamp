@@ -155,10 +155,27 @@ func (c *Client) TestConnection() error {
 }
 
 // SearchPlanScheme searches for existing broadcast plan schemes on the device.
-// Uses the same endpoint pattern as AddPlanScheme but with GET method.
+// Uses POST method with a payload matching the official Hikvision Web UI format.
+// From Web UI JS: o.a.WSDK_SetDeviceConfig("SearchPlanScheme",null,{type:"POST",data:...})
 func (c *Client) SearchPlanScheme() (interface{}, error) {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/SearchPlanScheme?format=json"
-	resp, err := c.doRequestWithRetry("GET", url, nil, "", 1)
+
+	// Payload matching Web UI format
+	payload := map[string]interface{}{
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+			},
+		},
+		"planSchemeID": []string{"1"},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal search payload: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
 	if err != nil {
 		return nil, fmt.Errorf("search plan scheme request failed: %w", err)
 	}
@@ -170,7 +187,7 @@ func (c *Client) SearchPlanScheme() (interface{}, error) {
 	}
 
 	if resp.StatusCode >= 400 {
-		logFailedResponse("GET", url, "", resp, body)
+		logFailedResponse("POST", url, string(jsonData), resp, body)
 		return nil, fmt.Errorf("search plan scheme failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
@@ -494,16 +511,21 @@ func (c *Client) DeleteAudio(audioID int) error {
 }
 
 // BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
-// Creates a temporary schedule that starts now and ends after the specified duration.
+// Creates a temporary schedule that starts now+2s and ends after the specified duration.
 // Uses the verified payload structure from the official Hikvision Web UI.
-// Uses default 08:00 timezone (without "+" prefix, matching Web UI format).
+// Uses default 08:00 timezone.
 func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) error {
 	return c.BroadcastNowWithTimezone(audioID, volume, durationMinutes, "08:00")
 }
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
-// The timezoneOffset should be in format like "+07:00" or "+08:00".
-// Uses AddPlanScheme to create a temporary immediate schedule.
+// The timezoneOffset should be in format like "08:00" (WITHOUT "+" prefix, the "+" is added as separator).
+// Strategy:
+//  1. First try ModifyPlanScheme (non-destructive, preserves other schedules).
+//  2. If ModifyPlanScheme returns 403 (some firmware versions), fall back to:
+//     SearchPlanScheme → merge existing schedules + broadcast_now → AddPlanScheme.
+//     This preserves existing schedules while adding the broadcast_now entry.
+//
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
@@ -517,30 +539,34 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
 	dateStr := now.Format("2006-01-02") + "+" + timezoneOffset
 
-	payload := map[string]interface{}{
-		"broadcastPlanSchemeList": []map[string]interface{}{
-			{
-				"planSchemeID": fmt.Sprintf("broadcast_now_%d", now.Unix()),
-				"enabled":      true,
-				"audioOutID":   []int{1},
-				"dailyScheduleInfo": map[string]interface{}{
-					"startTime": dateStr,
-					"stopTime":  dateStr,
-					"dailyScheduleList": []map[string]interface{}{
-						{
-							"beginTime": beginTime,
-							"endTime":   endTime,
-							"playMode":  "order",
-							"operation": map[string]interface{}{
-								"audioSource":   "customAudio",
-								"customAudioID": []int{audioID},
-								"audioLevel":    5,
-								"audioVolume":   volume,
-							},
-						},
+	broadcastNowScheme := map[string]interface{}{
+		"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
+		"planSchemeName": "Broadcast Now",
+		"enabled":        true,
+		"audioOutID":     []int{1},
+		"dailyScheduleInfo": map[string]interface{}{
+			"startTime": dateStr,
+			"stopTime":  dateStr,
+			"dailyScheduleList": []map[string]interface{}{
+				{
+					"beginTime": beginTime,
+					"endTime":   endTime,
+					"playMode":  "order",
+					"operation": map[string]interface{}{
+						"audioSource":   "customAudio",
+						"customAudioID": []int{audioID},
+						"audioLevel":    5,
+						"audioVolume":   volume,
 					},
 				},
 			},
+		},
+	}
+
+	// Strategy 1: Try ModifyPlanScheme first (non-destructive)
+	modifyPayload := map[string]interface{}{
+		"broadcastPlanSchemeList": []map[string]interface{}{
+			broadcastNowScheme,
 		},
 		"terminalInfoList": []map[string]interface{}{
 			{
@@ -550,7 +576,45 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	return c.CreateSchedule(payload)
+	err := c.ModifyPlanScheme(modifyPayload)
+	if err == nil {
+		return nil // Success with non-destructive approach
+	}
+
+	// If ModifyPlanScheme succeeded at HTTP level but returned 4xx, check if it's 403
+	log.Printf("[BROADCAST NOW] ModifyPlanScheme failed: %v — falling back to AddPlanScheme with merge", err)
+
+	// Strategy 2: Fallback — search existing schedules, merge with broadcast_now, use AddPlanScheme
+	existingSchemes := []map[string]interface{}{}
+	schemes, searchErr := c.SearchPlanScheme()
+	if searchErr == nil {
+		if schemesMap, ok := schemes.(map[string]interface{}); ok {
+			if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
+				for _, item := range list {
+					if scheme, ok := item.(map[string]interface{}); ok {
+						existingSchemes = append(existingSchemes, scheme)
+					}
+				}
+			}
+		}
+	}
+
+	// Build the full payload with existing schemes + broadcast_now
+	allSchemes := []map[string]interface{}{}
+	allSchemes = append(allSchemes, existingSchemes...)
+	allSchemes = append(allSchemes, broadcastNowScheme)
+
+	addPayload := map[string]interface{}{
+		"broadcastPlanSchemeList": allSchemes,
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
+	}
+
+	return c.CreateSchedule(addPayload)
 }
 
 // StopBroadcast stops all active broadcasts on the device.
