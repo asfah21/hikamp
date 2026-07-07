@@ -23,7 +23,6 @@
                 <th>Category</th>
                 <th>Duration</th>
                 <th>File Size</th>
-                <th>Sample Rate</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -52,13 +51,6 @@
                     {{end}}
                 </td>
                 <td>
-                    {{if .SampleRate}}
-                        {{.SampleRate}} Hz
-                    {{else}}
-                        -
-                    {{end}}
-                </td>
-                <td>
                     <div class="action-buttons">
                         <button class="btn btn-sm btn-ghost" hx-delete="/admin/audio/delete/{{.ID}}" hx-confirm="Delete this audio file?" hx-trigger="click" title="Delete" style="color: var(--error);">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -67,7 +59,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
+            <tr><td colspan="5" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No audio files uploaded yet.</td></tr>
             {{end}}
         </tbody>
     </table>
