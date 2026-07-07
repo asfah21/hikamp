@@ -63,7 +63,15 @@ func AutoGeneratePrayerTimes(location *models.PrayerLocation, days int) error {
 
 // GetUpcomingPrayerTimes returns prayer times for today and next few days
 func GetUpcomingPrayerTimes(days int) ([]models.PrayerTime, error) {
+	// Use location timezone if available
+	location, err := repositories.GetPrayerLocation()
 	now := time.Now()
+	if err == nil && location != nil {
+		loc, tzErr := time.LoadLocation(location.Timezone)
+		if tzErr == nil {
+			now = now.In(loc)
+		}
+	}
 	startDate := now.Format("2006-01-02")
 	endDate := now.AddDate(0, 0, days-1).Format("2006-01-02")
 	return repositories.GetPrayerTimes(startDate, endDate)

@@ -54,14 +54,6 @@
                             <select name="begin_second" class="input-field time-select" x-model="beginSecond">
                                 {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
                             </select>
-                            <select name="begin_tz" class="input-field time-tz-select" x-model="beginTz">
-                                <option value="+08:00">+08:00</option>
-                                <option value="+07:00">+07:00</option>
-                                <option value="+09:00">+09:00</option>
-                                <option value="+05:30">+05:30</option>
-                                <option value="+06:30">+06:30</option>
-                                <option value="+00:00">+00:00</option>
-                            </select>
                             <input type="hidden" name="begin_time" x-bind:value="beginTimeValue()">
                         </div>
                         <div class="time-picker-actions">
@@ -88,14 +80,6 @@
                             <span class="time-sep">:</span>
                             <select name="end_second" class="input-field time-select" x-model="endSecond">
                                 {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
-                            </select>
-                            <select name="end_tz" class="input-field time-tz-select" x-model="endTz">
-                                <option value="+08:00">+08:00</option>
-                                <option value="+07:00">+07:00</option>
-                                <option value="+09:00">+09:00</option>
-                                <option value="+05:30">+05:30</option>
-                                <option value="+06:30">+06:30</option>
-                                <option value="+00:00">+00:00</option>
                             </select>
                             <input type="hidden" name="end_time" x-bind:value="endTimeValue()">
                         </div>
@@ -133,15 +117,29 @@ function scheduleForm() {
     var initialEnd   = { h: '12', m: '05', s: '00', tz: '+08:00' };
 
     // Extract begin/end time from data attributes if editing
+    // Supports both "HH:MM:SS+08:00" and "HH:MM:SS" formats
     var el = document.querySelector('[data-begin-time]');
     if (el) {
-        var beginMatch = el.getAttribute('data-begin-time').match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})$/);
+        var beginRaw = el.getAttribute('data-begin-time');
+        var beginMatch = beginRaw.match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})?$/);
         if (beginMatch) {
-            initialBegin = { h: beginMatch[1], m: beginMatch[2], s: beginMatch[3], tz: beginMatch[4] };
+            initialBegin = { h: beginMatch[1], m: beginMatch[2], s: beginMatch[3], tz: beginMatch[4] || '+08:00' };
+        } else {
+            // Try HH:MM format
+            var beginSimple = beginRaw.match(/^(\d{2}):(\d{2})$/);
+            if (beginSimple) {
+                initialBegin = { h: beginSimple[1], m: beginSimple[2], s: '00', tz: '+08:00' };
+            }
         }
-        var endMatch = el.getAttribute('data-end-time').match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})$/);
+        var endRaw = el.getAttribute('data-end-time');
+        var endMatch = endRaw.match(/^(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})?$/);
         if (endMatch) {
-            initialEnd = { h: endMatch[1], m: endMatch[2], s: endMatch[3], tz: endMatch[4] };
+            initialEnd = { h: endMatch[1], m: endMatch[2], s: endMatch[3], tz: endMatch[4] || '+08:00' };
+        } else {
+            var endSimple = endRaw.match(/^(\d{2}):(\d{2})$/);
+            if (endSimple) {
+                initialEnd = { h: endSimple[1], m: endSimple[2], s: '00', tz: '+08:00' };
+            }
         }
     }
 
@@ -160,10 +158,10 @@ function scheduleForm() {
         endTz: initialEnd.tz,
 
         beginTimeValue: function() {
-            return this.beginHour + ':' + this.beginMinute + ':' + this.beginSecond + this.beginTz;
+            return this.beginHour + ':' + this.beginMinute + ':' + this.beginSecond;
         },
         endTimeValue: function() {
-            return this.endHour + ':' + this.endMinute + ':' + this.endSecond + this.endTz;
+            return this.endHour + ':' + this.endMinute + ':' + this.endSecond;
         },
 
         pad: function(n) {

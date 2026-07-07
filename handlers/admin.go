@@ -750,6 +750,89 @@ func AdminPrayerBroadcast(w http.ResponseWriter, r *http.Request) {
 	RenderDashboard(w, r, "prayer_broadcast", data)
 }
 
+// detectTimezoneFromLongitude determines the IANA timezone name from longitude.
+// Indonesia: 95-141°E covers WIB (UTC+7), WITA (UTC+8), WIT (UTC+9).
+// For other regions, maps to common timezones by offset.
+func detectTimezoneFromLongitude(longitude float64) string {
+	// Indonesia timezones
+	if longitude >= 95 && longitude < 120 {
+		return "Asia/Jakarta" // WIB (UTC+7)
+	}
+	if longitude >= 120 && longitude < 138 {
+		return "Asia/Makassar" // WITA (UTC+8)
+	}
+	if longitude >= 138 && longitude <= 141 {
+		return "Asia/Jayapura" // WIT (UTC+9)
+	}
+
+	// For other regions, calculate offset and map to common timezones
+	// Round to nearest half hour
+	offset := (longitude + 7.5) / 15
+	if offset > 12 {
+		offset = 12
+	}
+	if offset < -12 {
+		offset = -12
+	}
+
+	// Map common offsets to IANA timezones
+	// India is UTC+5:30, Nepal is UTC+5:45 — handle separately
+	if offset > 5.25 && offset < 5.75 {
+		return "Asia/Kolkata"
+	}
+	if offset > 5.6 && offset < 5.9 {
+		return "Asia/Kathmandu"
+	}
+
+	// Round to nearest hour for other timezones
+	rounded := int(offset + 0.5)
+	if rounded > 12 {
+		rounded = 12
+	}
+	if rounded < -12 {
+		rounded = -12
+	}
+
+	switch rounded {
+	case 7:
+		return "Asia/Jakarta"
+	case 8:
+		return "Asia/Makassar"
+	case 9:
+		return "Asia/Jayapura"
+	case 3:
+		return "Asia/Riyadh"
+	case 4:
+		return "Asia/Dubai"
+	case 5:
+		return "Asia/Karachi"
+	case 6:
+		return "Asia/Dhaka"
+	case 10:
+		return "Asia/Seoul"
+	case 11:
+		return "Pacific/Guadalcanal"
+	case 12:
+		return "Pacific/Auckland"
+	case -5:
+		return "America/New_York"
+	case -6:
+		return "America/Chicago"
+	case -7:
+		return "America/Denver"
+	case -8:
+		return "America/Los_Angeles"
+	case 0:
+		return "Europe/London"
+	case 1:
+		return "Europe/Paris"
+	case 2:
+		return "Europe/Helsinki"
+	default:
+		return "Asia/Makassar"
+	}
+}
+
 // AdminPrayerSave handles prayer location save and auto-generates prayer times
 func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -757,10 +840,14 @@ func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 		longitude, _ := strconv.ParseFloat(r.FormValue("longitude"), 64)
 		method, _ := strconv.Atoi(r.FormValue("method"))
 
+		// Auto-detect timezone from longitude
+		// Each 15° = 1 hour offset, rounded to nearest half hour
+		timezone := detectTimezoneFromLongitude(longitude)
+
 		location := &models.PrayerLocation{
 			Latitude:  latitude,
 			Longitude: longitude,
-			Timezone:  r.FormValue("timezone"),
+			Timezone:  timezone,
 			Method:    method,
 		}
 

@@ -18,20 +18,6 @@
                 </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Timezone</label>
-                <select name="timezone" class="input-field">
-                    {{if $location}}
-                    <option value="Asia/Jakarta" {{if eq $location.Timezone "Asia/Jakarta"}}selected{{end}}>Asia/Jakarta (WIB)</option>
-                    <option value="Asia/Makassar" {{if eq $location.Timezone "Asia/Makassar"}}selected{{end}}>Asia/Makassar (WITA)</option>
-                    <option value="Asia/Jayapura" {{if eq $location.Timezone "Asia/Jayapura"}}selected{{end}}>Asia/Jayapura (WIT)</option>
-                    {{else}}
-                    <option value="Asia/Makassar" selected>Asia/Makassar (WITA)</option>
-                    <option value="Asia/Jakarta">Asia/Jakarta (WIB)</option>
-                    <option value="Asia/Jayapura">Asia/Jayapura (WIT)</option>
-                    {{end}}
-                </select>
-            </div>
-            <div class="form-group">
                 <label class="form-label">Calculation Method</label>
                 <select name="method" class="input-field">
                     {{if $location}}
