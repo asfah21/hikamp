@@ -505,6 +505,7 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "+07:00" or "+08:00".
+// Uses ModifyPlanScheme instead of AddPlanScheme to avoid deleting other existing schedules.
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 // Key differences from standard camelCase:
 //   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
@@ -513,8 +514,10 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
-	// Hikvision Web UI uses "+" separator between time and timezone (e.g., "22:02:00+08:00")
-	beginTime := now.Format("15:04:05") + "+" + timezoneOffset
+	// Add 2 seconds to beginTime so the broadcast starts slightly in the future,
+	// accounting for network/processing delay between sending the request and the device applying it.
+	// This prevents the schedule from being created with a beginTime in the past.
+	beginTime := now.Add(2*time.Second).Format("15:04:05") + "+" + timezoneOffset
 	endTime := now.Add(time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
 	// Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
@@ -554,7 +557,7 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	return c.CreateSchedule(payload)
+	return c.ModifyPlanScheme(payload)
 }
 
 // StopBroadcast stops all active broadcasts on the device.
