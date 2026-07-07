@@ -185,7 +185,6 @@ func (c *Client) SearchPlanScheme() (interface{}, error) {
 
 // DeletePlanScheme deletes a broadcast plan scheme by its ID.
 // Uses the ModifyPlanScheme endpoint with an empty enabled=false payload to remove it.
-// Uses the same field naming convention as the Web UI ("dailyscheduleInfo" lowercase 's').
 func (c *Client) DeletePlanScheme(planSchemeID string) error {
 	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json"
 
@@ -196,8 +195,7 @@ func (c *Client) DeletePlanScheme(planSchemeID string) error {
 				"planSchemeID": planSchemeID,
 				"enabled":      false,
 				"audioOutID":   []int{1},
-				// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
-				"dailyscheduleInfo": map[string]interface{}{
+				"dailyScheduleInfo": map[string]interface{}{
 					"startTime":         "2000-01-01 00:00",
 					"stopTime":          "2000-01-01 00:00",
 					"dailyScheduleList": []map[string]interface{}{},
@@ -505,12 +503,8 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "+07:00" or "+08:00".
-// Uses ModifyPlanScheme instead of AddPlanScheme to avoid deleting other existing schedules.
+// Uses AddPlanScheme to create a temporary immediate schedule.
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
-// Key differences from standard camelCase:
-//   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
-//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
-//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
@@ -529,8 +523,7 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 				"planSchemeID": fmt.Sprintf("broadcast_now_%d", now.Unix()),
 				"enabled":      true,
 				"audioOutID":   []int{1},
-				// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
-				"dailyscheduleInfo": map[string]interface{}{
+				"dailyScheduleInfo": map[string]interface{}{
 					"startTime": dateStr,
 					"stopTime":  dateStr,
 					"dailyScheduleList": []map[string]interface{}{
@@ -557,7 +550,7 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	return c.ModifyPlanScheme(payload)
+	return c.CreateSchedule(payload)
 }
 
 // StopBroadcast stops all active broadcasts on the device.
@@ -619,7 +612,7 @@ func (c *Client) disablePlanScheme(planSchemeID string) error {
 				"planSchemeID": planSchemeID,
 				"enabled":      false,
 				"audioOutID":   []int{1},
-				"dailyscheduleInfo": map[string]interface{}{
+				"dailyScheduleInfo": map[string]interface{}{
 					"startTime":         "2000-01-01 00:00",
 					"stopTime":          "2000-01-01 00:00",
 					"dailyScheduleList": []map[string]interface{}{},

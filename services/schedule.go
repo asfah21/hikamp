@@ -56,8 +56,9 @@ func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
 
 // SyncScheduleToDevice syncs a schedule to a Hikvision device.
 // Uses DeletePlanScheme + AddPlanScheme pattern for reliability.
-// This is safer than ModifyPlanScheme which can return 403 "Invalid Operation"
-// when modifying existing schedules on some firmware versions.
+// DeletePlanScheme removes the existing schedule with the same planSchemeID,
+// then AddPlanScheme creates the new one. This avoids 403 "Invalid Operation"
+// errors from ModifyPlanScheme on some firmware versions.
 // Also handles devices that don't support SearchPlanScheme (GET 403 methodNotAllowed).
 // Uses HikvisionAudioID from the audio_files table as customAudioID in the payload.
 func SyncScheduleToDevice(scheduleID int) error {
@@ -306,11 +307,6 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 
 // buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model.
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
-// Key differences from standard camelCase:
-//   - "dailyscheduleInfo" (lowercase 's') — matches Web UI, NOT "dailyScheduleInfo"
-//   - startTime/stopTime format: "YYYY-MM-DD+HH:MM" (with "+" separator)
-//   - beginTime/endTime format: "HH:MM:SS+HH:MM" (plus separator)
-//
 // hikvisionAudioID is the customAudioID from the Hikvision device (not the local audio_files.id).
 func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string, hikvisionAudioID int) map[string]interface{} {
 	// Format times using Hikvision Web UI format: "HH:MM:SS+HH:MM" (plus separator)
@@ -339,17 +335,16 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 	}
 
 	// Build the plan scheme
-	// Note: Web UI does NOT send "planSchemeName" field
 	planScheme := map[string]interface{}{
-		"planSchemeID": planSchemeID,
-		"enabled":      s.Enabled,
-		"audioOutID":   []int{1},
+		"planSchemeID":   planSchemeID,
+		"planSchemeName": s.Name,
+		"enabled":        s.Enabled,
+		"audioOutID":     []int{1},
 	}
 
 	switch s.ScheduleType {
 	case "daily":
-		// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
-		planScheme["dailyscheduleInfo"] = map[string]interface{}{
+		planScheme["dailyScheduleInfo"] = map[string]interface{}{
 			"startTime": today,
 			"stopTime":  futureDate,
 			"dailyScheduleList": []map[string]interface{}{
@@ -376,8 +371,7 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		// IMPORTANT: Web UI uses "dailyscheduleInfo" (lowercase 's'), NOT "dailyScheduleInfo"
-		planScheme["dailyscheduleInfo"] = map[string]interface{}{
+		planScheme["dailyScheduleInfo"] = map[string]interface{}{
 			"startTime": dateStr,
 			"stopTime":  dateStr,
 			"dailyScheduleList": []map[string]interface{}{
