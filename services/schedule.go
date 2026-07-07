@@ -55,7 +55,9 @@ func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
 }
 
 // SyncScheduleToDevice syncs a schedule to a Hikvision device.
-// Uses ModifyPlanScheme to update existing or create new schedule.
+// Uses SearchPlanScheme + DeletePlanScheme + AddPlanScheme pattern for reliability.
+// This is safer than ModifyPlanScheme which can return 403 "Invalid Operation"
+// when modifying existing schedules on some firmware versions.
 // Uses HikvisionAudioID from the audio_files table as customAudioID in the payload.
 func SyncScheduleToDevice(scheduleID int) error {
 	schedule, err := repositories.GetScheduleByID(scheduleID)
@@ -96,10 +98,36 @@ func SyncScheduleToDevice(scheduleID int) error {
 
 	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s, hikvisionAudioID=%d", planSchemeID, schedule.BeginTime, schedule.EndTime, *audioFile.HikvisionAudioID)
 
-	// Build and send the schedule payload using ModifyPlanScheme (upsert)
+	// Step 1: Search for existing plan schemes on the device
+	existingSchemes, searchErr := client.SearchPlanScheme()
+	if searchErr != nil {
+		log.Printf("[SYNC] Warning: could not search existing schemes (continuing): %v", searchErr)
+	} else {
+		// Step 2: If planSchemeID already exists, delete it first
+		if schemesMap, ok := existingSchemes.(map[string]interface{}); ok {
+			if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
+				for _, item := range list {
+					if scheme, ok := item.(map[string]interface{}); ok {
+						if existingID, ok := scheme["planSchemeID"].(string); ok && existingID == planSchemeID {
+							log.Printf("[SYNC] Found existing planScheme '%s', deleting before re-adding", planSchemeID)
+							delErr := client.DeletePlanScheme(planSchemeID)
+							if delErr != nil {
+								log.Printf("[SYNC] Warning: delete existing scheme failed (will try add anyway): %v", delErr)
+							}
+							// Small delay to let device process the deletion
+							time.Sleep(500 * time.Millisecond)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Step 3: Build and send the schedule payload using AddPlanScheme
 	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
 
-	err = client.ModifyPlanScheme(payload)
+	err = client.CreateSchedule(payload)
 	if err != nil {
 		return fmt.Errorf("sync schedule failed: %w", err)
 	}
@@ -136,6 +164,8 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 
 // SyncSchedulesFromDevice fetches all plan schemes from a Hikvision device
 // and creates/updates local schedule records.
+// Note: Some firmware versions do not support SearchPlanScheme (GET) and return
+// 403 "methodNotAllowed". In that case, sync-from-device is not possible.
 func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	device, err := repositories.GetDeviceByID(deviceID)
 	if err != nil {
@@ -145,9 +175,10 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 	// Search for all plan schemes on the device
+	// Note: Some firmware versions return 403 "methodNotAllowed" for this endpoint.
 	schemes, err := client.SearchPlanScheme()
 	if err != nil {
-		return 0, fmt.Errorf("failed to search plan schemes: %w", err)
+		return 0, fmt.Errorf("sync from device failed: this device does not support searching schedules (SearchPlanScheme returned 403). Try creating schedules locally and syncing to device instead: %w", err)
 	}
 
 	// Parse the response
