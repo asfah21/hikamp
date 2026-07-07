@@ -3,10 +3,11 @@ package hikvision
 // Payload structs for Hikvision ISAPI AddPlanScheme endpoint.
 // IMPORTANT: Hikvision Web UI uses NON-standard JSON field naming.
 // Key differences from standard camelCase:
-//   - "dailyscheduleInfo" (lowercase 's') — NOT "dailyScheduleInfo"
-//   - No "planSchemeName" field
-//   - startTime/stopTime format: "YYYY-MM-DD HH:MM" (with time component)
-//   - beginTime/endTime format: "HH:MM:SS HH:MM" (space separator, NOT "+")
+//   - "dailyScheduleInfo" (capital 'S') — NOT "dailyscheduleInfo"
+//   - "planSchemeName" is always sent by Web UI
+//   - startTime/stopTime format: "YYYY-MM-DD+08:00" (PLUS separator)
+//   - beginTime/endTime format: "HH:MM:SS+08:00" (PLUS separator)
+//   - "weklyScheduleInfo" — TYPO "wekly" (not "weekly") from official Web UI
 
 // AddPlanSchemePayload is the top-level request payload
 type AddPlanSchemePayload struct {
@@ -15,17 +16,16 @@ type AddPlanSchemePayload struct {
 }
 
 // BroadcastPlanScheme represents a single plan scheme entry
-// Note: Web UI does NOT send "planSchemeName" field
 type BroadcastPlanScheme struct {
 	PlanSchemeID       string              `json:"planSchemeID"`
+	PlanSchemeName     string              `json:"planSchemeName,omitempty"`
 	Enabled            bool                `json:"enabled"`
 	AudioOutID         []int               `json:"audioOutID"`
-	DailyScheduleInfo  *DailyScheduleInfo  `json:"dailyscheduleInfo,omitempty"`
-	WeeklyScheduleInfo *WeeklyScheduleInfo `json:"weeklyScheduleInfo,omitempty"`
+	DailyScheduleInfo  *DailyScheduleInfo  `json:"dailyScheduleInfo,omitempty"`
+	WeeklyScheduleInfo *WeeklyScheduleInfo `json:"weklyScheduleInfo,omitempty"`
 }
 
 // DailyScheduleInfo contains daily schedule configuration
-// Note: JSON tag uses "dailyscheduleInfo" (lowercase 's') to match Web UI
 type DailyScheduleInfo struct {
 	StartTime         string          `json:"startTime"`
 	StopTime          string          `json:"stopTime"`
@@ -47,10 +47,11 @@ type WeeklyScheduleDay struct {
 
 // ScheduleEntry represents a single schedule time entry
 type ScheduleEntry struct {
-	BeginTime string    `json:"beginTime"`
-	EndTime   string    `json:"endTime"`
-	PlayMode  string    `json:"playMode"`
-	Operation Operation `json:"operation"`
+	BeginTime   string    `json:"beginTime"`
+	EndTime     string    `json:"endTime"`
+	PlayNowTime string    `json:"playNowTime,omitempty"`
+	PlayMode    string    `json:"playMode"`
+	Operation   Operation `json:"operation"`
 }
 
 // Operation defines the audio playback operation
