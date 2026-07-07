@@ -5,7 +5,7 @@
         <p>Select a device and audio file to broadcast immediately.</p>
     </div>
     <div class="dashboard-panel-body">
-        <form hx-post="/admin/broadcast-now" hx-target="#main-content" hx-swap="innerHTML">
+        <form hx-post="/admin/broadcast-now">
             <div class="form-group">
                 <label class="form-label">Device</label>
                 <select name="device_id" class="input-field" required>

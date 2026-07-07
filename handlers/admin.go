@@ -758,7 +758,7 @@ func AdminSchedulesSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setHXTriggerToast(w, "Schedule synced to device successfully")
+	setHXTriggerToast(w, "Schedule synced to device successfully", true)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -771,9 +771,9 @@ func AdminSchedulesSyncAll(w http.ResponseWriter, r *http.Request) {
 
 	success, fail, err := services.SyncAllSchedulesToDevice()
 	if err != nil {
-		setHXTriggerToast(w, fmt.Sprintf("Sync completed: %d success, %d failed. Last error: %s", success, fail, err.Error()))
+		setHXTriggerToast(w, fmt.Sprintf("Sync completed: %d success, %d failed. Last error: %s", success, fail, err.Error()), true)
 	} else {
-		setHXTriggerToast(w, fmt.Sprintf("All %d schedules synced to device successfully", success))
+		setHXTriggerToast(w, fmt.Sprintf("All %d schedules synced to device successfully", success), true)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -1238,7 +1238,7 @@ func AdminStopBroadcast(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if stopped > 0 {
-				setHXTriggerToast(w, fmt.Sprintf("Broadcast stopped on %d device(s)", stopped))
+				setHXTriggerToast(w, fmt.Sprintf("Broadcast stopped on %d device(s)", stopped), true)
 			} else if lastErr != nil {
 				setHXTriggerToast(w, "Failed to stop broadcast: "+lastErr.Error())
 			} else {
@@ -1256,7 +1256,7 @@ func AdminStopBroadcast(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		setHXTriggerToast(w, "Broadcast stopped successfully")
+		setHXTriggerToast(w, "Broadcast stopped successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -1382,7 +1382,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 		services.CreateLog(log)
 
-		setHXTriggerToast(w, "Broadcast started successfully")
+		setHXTriggerToast(w, "Broadcast started successfully", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}

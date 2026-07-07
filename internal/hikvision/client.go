@@ -510,6 +510,31 @@ func (c *Client) DeleteAudio(audioID int) error {
 	return fmt.Errorf("DeleteAudio not yet implemented - inspect Hikvision Web UI Network tab first")
 }
 
+// getLocationFromOffset converts a timezone offset string like "07:00" or "-05:00"
+// to a *time.Location. This is used to convert server time to the target timezone
+// before formatting timestamps for the Hikvision device.
+func getLocationFromOffset(offset string) *time.Location {
+	// Parse "+HH:MM" or "-HH:MM" format
+	hours := 0
+	mins := 0
+	if len(offset) >= 5 {
+		sign := 1
+		start := 0
+		if offset[0] == '-' {
+			sign = -1
+			start = 1
+		} else if offset[0] == '+' {
+			start = 1
+		}
+		hours, _ = fmt.Sscanf(offset[start:start+2], "%d", &hours)
+		fmt.Sscanf(offset[start+3:start+5], "%d", &mins)
+		hours *= sign
+		mins *= sign
+	}
+	totalSecs := hours*3600 + mins*60
+	return time.FixedZone(fmt.Sprintf("UTC%+03d:%02d", hours, mins), totalSecs)
+}
+
 // BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
 // Creates a temporary schedule that starts now+2s and ends after the specified duration.
 // Uses the verified payload structure from the official Hikvision Web UI.
@@ -528,7 +553,10 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 //
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
-	now := time.Now()
+	// Parse the timezone offset to get the target location
+	// timezoneOffset is like "07:00" or "-05:00"
+	loc := getLocationFromOffset(timezoneOffset)
+	now := time.Now().In(loc)
 
 	// Add 2 seconds to beginTime so the broadcast starts slightly in the future,
 	// accounting for network/processing delay between sending the request and the device applying it.
