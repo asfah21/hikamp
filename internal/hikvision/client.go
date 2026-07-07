@@ -258,6 +258,33 @@ func (c *Client) CreateSchedule(payload interface{}) error {
 	return nil
 }
 
+// ModifyPlanScheme creates or updates a broadcast plan scheme on the Hikvision device.
+// Uses ModifyPlanScheme endpoint which acts as an upsert — creates if not exists, updates if exists.
+// This is safer than DeletePlanScheme + CreateSchedule because it doesn't remove unrelated schedules.
+func (c *Client) ModifyPlanScheme(payload interface{}) error {
+	url := c.BaseURL + "/ISAPI/VideoIntercom/broadcast/ModifyPlanScheme?format=json"
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	log.Printf("[HIKVISION] ModifyPlanScheme payload: %s", string(jsonData))
+
+	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
+	if err != nil {
+		return fmt.Errorf("modify plan scheme request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		logFailedResponse("POST", url, string(jsonData), resp, body)
+		return fmt.Errorf("modify plan scheme failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 // CreateScheduleWithRetry creates a broadcast schedule with retry logic for device-busy scenarios.
 // Retries up to maxRetries times with exponential backoff for 4xx/5xx errors.
 func (c *Client) CreateScheduleWithRetry(payload interface{}, maxRetries int) error {

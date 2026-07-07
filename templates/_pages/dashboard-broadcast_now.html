@@ -28,62 +28,80 @@
                 <label class="form-label">Volume (0-100)</label>
                 <input type="number" name="volume" class="input-field" min="0" max="100" value="50">
             </div>
-            <div class="form-group">
+            <div class="form-group" x-data="broadcastDuration()">
                 <label class="form-label">Duration</label>
                 <div class="time-picker-row">
-                    <select name="duration_hours" id="duration-hours" class="input-field time-select">
-                        <option value="0">00</option>
-                        <option value="1">01</option>
-                        <option value="2">02</option>
-                        <option value="3">03</option>
-                        <option value="4">04</option>
-                        <option value="5">05</option>
-                        <option value="6">06</option>
-                        <option value="7">07</option>
-                        <option value="8">08</option>
-                        <option value="9">09</option>
-                        <option value="10">10</option>
-                        <option value="11">11</option>
-                        <option value="12">12</option>
-                    </select>
+                    <div x-data="timeSpinner(13, 'durHour')">
+                        <div class="time-spinner-arrow" @click="up()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                        </div>
+                        <div class="time-spinner" @click="cycle()">
+                            <div class="time-spinner-highlight"></div>
+                            <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
+                                <template x-for="item in items" :key="item">
+                                    <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
+                                        <span x-text="String(item).padStart(2, '0')"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="time-spinner-arrow" @click="down()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <select name="duration_hours" class="time-spinner-hidden-select" x-model="durHour">
+                            <template x-for="item in items" :key="item">
+                                <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
+                            </template>
+                        </select>
+                    </div>
                     <span class="time-sep">:</span>
-                    <select name="duration_minutes" id="duration-minutes" class="input-field time-select">
-                        <option value="0">00</option>
-                        <option value="1">01</option>
-                        <option value="2">02</option>
-                        <option value="3">03</option>
-                        <option value="4">04</option>
-                        <option value="5">05</option>
-                        <option value="6">06</option>
-                        <option value="7">07</option>
-                        <option value="8">08</option>
-                        <option value="9">09</option>
-                        <option value="10">10</option>
-                        <option value="15">15</option>
-                        <option value="20">20</option>
-                        <option value="25">25</option>
-                        <option value="30">30</option>
-                        <option value="35">35</option>
-                        <option value="40">40</option>
-                        <option value="45">45</option>
-                        <option value="50">50</option>
-                        <option value="55">55</option>
-                    </select>
+                    <div x-data="timeSpinner(60, 'durMin')">
+                        <div class="time-spinner-arrow" @click="up()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                        </div>
+                        <div class="time-spinner" @click="cycle()">
+                            <div class="time-spinner-highlight"></div>
+                            <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
+                                <template x-for="item in items" :key="item">
+                                    <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
+                                        <span x-text="String(item).padStart(2, '0')"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="time-spinner-arrow" @click="down()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <select name="duration_minutes" class="time-spinner-hidden-select" x-model="durMin">
+                            <template x-for="item in items" :key="item">
+                                <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
+                            </template>
+                        </select>
+                    </div>
                     <span class="time-sep">:</span>
-                    <select name="duration_seconds" id="duration-seconds" class="input-field time-select">
-                        <option value="0">00</option>
-                        <option value="5">05</option>
-                        <option value="10">10</option>
-                        <option value="15">15</option>
-                        <option value="20">20</option>
-                        <option value="25">25</option>
-                        <option value="30">30</option>
-                        <option value="35">35</option>
-                        <option value="40">40</option>
-                        <option value="45">45</option>
-                        <option value="50">50</option>
-                        <option value="55">55</option>
-                    </select>
+                    <div x-data="timeSpinner(60, 'durSec')">
+                        <div class="time-spinner-arrow" @click="up()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
+                        </div>
+                        <div class="time-spinner" @click="cycle()">
+                            <div class="time-spinner-highlight"></div>
+                            <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
+                                <template x-for="item in items" :key="item">
+                                    <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
+                                        <span x-text="String(item).padStart(2, '0')"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="time-spinner-arrow" @click="down()">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </div>
+                        <select name="duration_seconds" class="time-spinner-hidden-select" x-model="durSec">
+                            <template x-for="item in items" :key="item">
+                                <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
+                            </template>
+                        </select>
+                    </div>
                 </div>
                 <small style="color: var(--inkMuted); font-size: 12px;">Duration auto-fills from selected audio. Adjust as needed.</small>
             </div>
@@ -105,9 +123,13 @@ function setDurationFromAudio(select) {
         const hours = Math.floor(durationSec / 3600);
         const minutes = Math.floor((durationSec % 3600) / 60);
         const seconds = durationSec % 60;
-        document.getElementById('duration-hours').value = hours;
-        document.getElementById('duration-minutes').value = minutes;
-        document.getElementById('duration-seconds').value = seconds;
+        // Update Alpine state via the broadcastDuration component
+        const el = select.closest('[x-data="broadcastDuration()"]');
+        if (el && el.__x) {
+            el.__x.$data.durHour = String(hours).padStart(2, '0');
+            el.__x.$data.durMin = String(minutes).padStart(2, '0');
+            el.__x.$data.durSec = String(seconds).padStart(2, '0');
+        }
     }
 }
 </script>

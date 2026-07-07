@@ -8,7 +8,7 @@ import (
 // GetAllAudioFiles retrieves all audio files
 func GetAllAudioFiles() ([]models.AudioFile, error) {
 	query := `SELECT id, name, category, duration, duration_str, file_size, hikvision_audio_id, hikvision_path, device_id, created_at, updated_at 
-              FROM audio_files ORDER BY id DESC`
+              FROM audio_files ORDER BY hikvision_audio_id ASC NULLS LAST, id ASC`
 	rows, err := database.DB.Query(query)
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func DeleteAudioFile(id int) error {
 // SearchAudioFiles searches audio files by name
 func SearchAudioFiles(query string) ([]models.AudioFile, error) {
 	sql := `SELECT id, name, category, duration, duration_str, file_size, hikvision_audio_id, hikvision_path, device_id, created_at, updated_at 
-            FROM audio_files WHERE name ILIKE $1 ORDER BY id DESC`
+            FROM audio_files WHERE name ILIKE $1 ORDER BY hikvision_audio_id ASC NULLS LAST, id ASC`
 	rows, err := database.DB.Query(sql, "%"+query+"%")
 	if err != nil {
 		return nil, err
