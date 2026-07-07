@@ -26,7 +26,7 @@ func GetPrayerTimes(startDate, endDate string) ([]models.PrayerTime, error) {
 
 // GenerateAndSavePrayerTimes generates prayer times and saves them to database
 func GenerateAndSavePrayerTimes(location *models.PrayerLocation, startDate, endDate time.Time) error {
-	results := GeneratePrayerTimesForRange(location.Latitude, location.Longitude, location.Timezone, location.Method, startDate, endDate)
+	results := GeneratePrayerTimesForRange(location.Latitude, location.Longitude, location.Timezone, startDate, endDate)
 
 	for _, r := range results {
 		pt := &models.PrayerTime{

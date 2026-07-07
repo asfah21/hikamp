@@ -17,21 +17,6 @@
                     <input type="number" step="any" name="longitude" id="prayer-longitude" class="input-field" value="{{if $location}}{{$location.Longitude}}{{else}}106.8456{{end}}" required>
                 </div>
             </div>
-            <div class="form-group">
-                <label class="form-label">Calculation Method</label>
-                <select name="method" class="input-field">
-                    {{if $location}}
-                    <option value="3" {{if eq $location.Method 3}}selected{{end}}>Muslim World League (MWL)</option>
-                    <option value="4" {{if eq $location.Method 4}}selected{{end}}>Umm Al-Qura University, Makkah</option>
-                    <option value="99" {{if eq $location.Method 99}}selected{{end}}>Kemenag RI (Fajr 20°, Isha 18°)</option>
-                    {{else}}
-                    <option value="3" selected>Muslim World League (MWL)</option>
-                    <option value="4">Umm Al-Qura University, Makkah</option>
-                    <option value="99">Kemenag RI (Fajr 20°, Isha 18°)</option>
-                    {{end}}
-                </select>
-            </div>
-
             <!-- Map Picker -->
             <div class="form-group">
                 <label class="form-label">Pick Location on Map</label>

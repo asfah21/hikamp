@@ -5,29 +5,6 @@ import (
 	"time"
 )
 
-// Prayer calculation methods
-const (
-	MethodMWL     = 3  // Muslim World League (MWL)
-	MethodMakkah  = 4  // Umm Al-Qura University, Makkah
-	MethodKemenag = 99 // Kemenag RI (Fajr 20°, Isha 18°)
-)
-
-// MethodConfig holds calculation parameters for each method
-type MethodConfig struct {
-	FajrAngle     float64
-	IshaAngle     float64
-	IshaMethod    string // "angle" or "fixed"
-	IshaFixed     string // fixed time for Isha (e.g., "90 min")
-	MaghribMethod string // "angle" or "fixed"
-	MaghribFixed  string // fixed time for Maghrib
-}
-
-var methodConfigs = map[int]MethodConfig{
-	MethodMWL:     {FajrAngle: 18, IshaAngle: 17, IshaMethod: "angle"},
-	MethodMakkah:  {FajrAngle: 18.5, IshaAngle: 0, IshaMethod: "fixed", IshaFixed: "90 min"},
-	MethodKemenag: {FajrAngle: 20, IshaAngle: 18, IshaMethod: "angle"},
-}
-
 // PrayerTimesResult holds calculated prayer times
 type PrayerTimesResult struct {
 	Fajr    string
@@ -37,83 +14,58 @@ type PrayerTimesResult struct {
 	Isha    string
 }
 
-// CalculatePrayerTimes calculates all prayer times for a given date and location
-func CalculatePrayerTimes(date time.Time, latitude, longitude float64, timezone string, method int) *PrayerTimesResult {
-	// Get timezone offset
+// CalculatePrayerTimes calculates all prayer times using the praytimes.org algorithm.
+// This is a well-tested, open-source algorithm used by millions worldwide.
+// Reference: https://praytimes.org/manual
+func CalculatePrayerTimes(date time.Time, latitude, longitude float64, timezone string) *PrayerTimesResult {
 	loc, err := time.LoadLocation(timezone)
 	if err != nil {
 		loc = time.UTC
 	}
 
-	// Use the date at the given timezone
 	year, month, day := date.In(loc).Date()
 
-	// Calculate timezone offset from UTC in hours
+	// Get timezone offset in hours
 	_, offsetSec := date.In(loc).Zone()
-	timezoneOffset := float64(offsetSec) / 3600.0
+	tzOffset := float64(offsetSec) / 3600.0
 
-	// Calculate Julian Day
+	// Julian Day
 	jd := julianDay(year, int(month), day)
 
-	// Calculate sun position
-	declination, equation := sunPosition(jd)
+	// Sun position
+	dec, eqt := sunPosition(jd)
 
-	// Calculate Dhuhr (zenith) - result is in UTC decimal hours
-	// equation is in DEGREES, convert to hours by dividing by 15
-	dhuhrUTC := 12.0 + equation/15.0 - longitude/15.0
-	// Convert to local time by adding timezone offset
-	dhuhr := dhuhrUTC + timezoneOffset
+	// Dhuhr (zenith) in local time
+	dhuhr := 12.0 + tzOffset - longitude/15.0 - eqt/15.0
 
-	// Get method config
-	config := methodConfigs[method]
-	if config.FajrAngle == 0 {
-		config = methodConfigs[MethodMWL] // default to MWL
-	}
+	// Fajr: sun angle 20° below horizon (standard for Indonesia/Asia)
+	fajr := dhuhr - hourAngle(dec, latitude, -20.0)/15.0
 
-	// Calculate prayer times in degrees
-	// Fajr: sun is at -FajrAngle degrees below the horizon
-	fajrDeg := dhuhr - hourAngle(declination, latitude, -config.FajrAngle)/15.0
-	// Sunrise: sun is at -0.833° (accounting for atmospheric refraction)
-	sunriseDeg := dhuhr - hourAngle(declination, latitude, -0.833)/15.0
-	dhuhrDeg := dhuhr
-	// Asr: based on shadow length
-	asrDeg := dhuhr + hourAngle(declination, latitude, asrAngle(declination, latitude, false))/15.0
-	asrHanafiDeg := dhuhr + hourAngle(declination, latitude, asrAngle(declination, latitude, true))/15.0
-	// Maghrib: sunset (sun at -0.833°)
-	maghribDeg := dhuhr + hourAngle(declination, latitude, -0.833)/15.0
+	// Sunrise: sun angle 0.833° below horizon (atmospheric refraction)
+	sunrise := dhuhr - hourAngle(dec, latitude, -0.833)/15.0
 
-	var ishaDeg float64
-	if config.IshaMethod == "fixed" {
-		// Fixed Isha (e.g., 90 minutes after Maghrib)
-		ishaDeg = maghribDeg + 1.5 // 90 minutes = 1.5 hours
-	} else {
-		// Isha: sun is at -IshaAngle degrees below the horizon
-		ishaDeg = dhuhr + hourAngle(declination, latitude, -config.IshaAngle)/15.0
-	}
+	// Asr: shadow length = object height (Shafi'i standard)
+	asr := dhuhr + asrHourAngle(dec, latitude, 1.0)/15.0
 
-	// Convert to time strings
-	fajrStr := degreesToTime(fajrDeg)
-	sunriseStr := degreesToTime(sunriseDeg)
-	dhuhrStr := degreesToTime(dhuhrDeg)
-	asrStr := degreesToTime(asrDeg)
-	asrHanafiStr := degreesToTime(asrHanafiDeg)
-	maghribStr := degreesToTime(maghribDeg)
-	ishaStr := degreesToTime(ishaDeg)
+	// Maghrib: sunset (same as sunrise angle)
+	maghrib := dhuhr + hourAngle(dec, latitude, -0.833)/15.0
 
-	_ = sunriseStr
-	_ = asrHanafiStr
+	// Isha: sun angle 18° below horizon (standard for Indonesia/Asia)
+	isha := dhuhr + hourAngle(dec, latitude, -18.0)/15.0
+
+	_ = sunrise // not used in output
 
 	return &PrayerTimesResult{
-		Fajr:    fajrStr,
-		Dhuhr:   dhuhrStr,
-		Asr:     asrStr,
-		Maghrib: maghribStr,
-		Isha:    ishaStr,
+		Fajr:    normalizeTime(fajr),
+		Dhuhr:   normalizeTime(dhuhr),
+		Asr:     normalizeTime(asr),
+		Maghrib: normalizeTime(maghrib),
+		Isha:    normalizeTime(isha),
 	}
 }
 
 // GeneratePrayerTimesForRange generates prayer times for a date range
-func GeneratePrayerTimesForRange(latitude, longitude float64, timezone string, method int, startDate, endDate time.Time) []struct {
+func GeneratePrayerTimesForRange(latitude, longitude float64, timezone string, startDate, endDate time.Time) []struct {
 	Date string
 	*PrayerTimesResult
 } {
@@ -124,7 +76,7 @@ func GeneratePrayerTimesForRange(latitude, longitude float64, timezone string, m
 
 	current := startDate
 	for !current.After(endDate) {
-		times := CalculatePrayerTimes(current, latitude, longitude, timezone, method)
+		times := CalculatePrayerTimes(current, latitude, longitude, timezone)
 		results = append(results, struct {
 			Date string
 			*PrayerTimesResult
@@ -136,6 +88,28 @@ func GeneratePrayerTimesForRange(latitude, longitude float64, timezone string, m
 	}
 
 	return results
+}
+
+// normalizeTime converts decimal hours to HH:MM string, normalized to 0-24
+func normalizeTime(decimalHours float64) string {
+	h := math.Mod(decimalHours, 24.0)
+	if h < 0 {
+		h += 24
+	}
+
+	hours := int(h)
+	minutes := int(math.Round((h - float64(hours)) * 60))
+
+	// Handle rounding overflow
+	if minutes >= 60 {
+		hours++
+		minutes = 0
+	}
+	if hours >= 24 {
+		hours = 0
+	}
+
+	return padInt(hours) + ":" + padInt(minutes)
 }
 
 // julianDay calculates the Julian Day number
@@ -168,10 +142,11 @@ func sunPosition(jd float64) (declination, equation float64) {
 	lambda += c
 	lambdaRad := degToRad(lambda)
 
-	// Sun's right ascension
+	// Obliquity of ecliptic
 	epsilon := 23.439291 - t*0.0130042
 	epsilonRad := degToRad(epsilon)
 
+	// Right ascension
 	ra := math.Atan2(math.Cos(epsilonRad)*math.Sin(lambdaRad), math.Cos(lambdaRad))
 	ra = radToDeg(ra)
 
@@ -180,11 +155,8 @@ func sunPosition(jd float64) (declination, equation float64) {
 	declination = radToDeg(declination)
 
 	// Equation of time
-	// Mean longitude
 	l0 := 280.46646 + t*(36000.76983+0.0003032*t)
 	l0 = math.Mod(l0, 360.0)
-
-	// Normalize RA
 	ra = math.Mod(ra, 360.0)
 
 	equation = l0 - ra
@@ -197,7 +169,7 @@ func sunPosition(jd float64) (declination, equation float64) {
 	return
 }
 
-// hourAngle calculates the hour angle for a given altitude
+// hourAngle calculates the hour angle for a given solar altitude
 func hourAngle(declination, latitude, altitude float64) float64 {
 	latRad := degToRad(latitude)
 	decRad := degToRad(declination)
@@ -206,61 +178,39 @@ func hourAngle(declination, latitude, altitude float64) float64 {
 	cosHA := (math.Sin(altRad) - math.Sin(latRad)*math.Sin(decRad)) / (math.Cos(latRad) * math.Cos(decRad))
 
 	if cosHA > 1 {
-		return 0 // Sun never rises
+		return 0
 	}
 	if cosHA < -1 {
-		return 180 // Sun never sets
+		return 180
 	}
 
 	return radToDeg(math.Acos(cosHA))
 }
 
-// asrAngle calculates the shadow angle for Asr prayer
-func asrAngle(declination, latitude float64, hanafi bool) float64 {
+// asrHourAngle calculates the hour angle for Asr prayer
+// factor: 1 for Shafi'i/Maliki/Hanbali, 2 for Hanafi
+func asrHourAngle(declination, latitude float64, factor float64) float64 {
 	latRad := degToRad(latitude)
 	decRad := degToRad(declination)
 
-	// Shadow length factor: 1 for Shafi'i/Maliki/Hanbali, 2 for Hanafi
-	factor := 1.0
-	if hanafi {
-		factor = 2.0
-	}
-
-	// Calculate the altitude of the sun for Asr
-	// Using: cot(alt) = factor + tan(lat - dec)
+	// cot(alt) = factor + tan(lat - dec)
 	tanDiff := math.Tan(math.Abs(latRad - decRad))
 	cotAlt := factor + tanDiff
-
 	altRad := math.Atan(1.0 / cotAlt)
-	return radToDeg(altRad)
+
+	return radToDeg(math.Acos(
+		(math.Sin(altRad) - math.Sin(latRad)*math.Sin(decRad)) / (math.Cos(latRad) * math.Cos(decRad)),
+	))
 }
 
-// degreesToTime converts decimal hours to time string (HH:MM)
-func degreesToTime(decimalHours float64) string {
-	// Normalize to 0-24
-	hours := math.Mod(decimalHours, 24.0)
-	if hours < 0 {
-		hours += 24
-	}
-
-	h := int(hours)
-	m := int(math.Round((hours - float64(h)) * 60))
-
-	// Handle rounding overflow
-	if m >= 60 {
-		h++
-		m = 0
-	}
-	if h >= 24 {
-		h = 0
-	}
-
-	return formatTime(h, m)
+// degToRad converts degrees to radians
+func degToRad(deg float64) float64 {
+	return deg * math.Pi / 180.0
 }
 
-// formatTime formats hour and minute to HH:MM string
-func formatTime(h, m int) string {
-	return padInt(h) + ":" + padInt(m)
+// radToDeg converts radians to degrees
+func radToDeg(rad float64) float64 {
+	return rad * 180.0 / math.Pi
 }
 
 // padInt pads an integer to 2 digits
@@ -276,31 +226,18 @@ func intToString(n int) string {
 	if n == 0 {
 		return "0"
 	}
-
 	negative := false
 	if n < 0 {
 		negative = true
 		n = -n
 	}
-
 	digits := []byte{}
 	for n > 0 {
 		digits = append([]byte{byte('0' + n%10)}, digits...)
 		n /= 10
 	}
-
 	if negative {
 		return "-" + string(digits)
 	}
 	return string(digits)
-}
-
-// degToRad converts degrees to radians
-func degToRad(deg float64) float64 {
-	return deg * math.Pi / 180.0
-}
-
-// radToDeg converts radians to degrees
-func radToDeg(rad float64) float64 {
-	return rad * 180.0 / math.Pi
 }

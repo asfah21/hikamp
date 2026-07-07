@@ -935,7 +935,6 @@ func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		latitude, _ := strconv.ParseFloat(r.FormValue("latitude"), 64)
 		longitude, _ := strconv.ParseFloat(r.FormValue("longitude"), 64)
-		method, _ := strconv.Atoi(r.FormValue("method"))
 
 		// Auto-detect timezone from longitude
 		// Each 15° = 1 hour offset, rounded to nearest half hour
@@ -945,7 +944,7 @@ func AdminPrayerSave(w http.ResponseWriter, r *http.Request) {
 			Latitude:  latitude,
 			Longitude: longitude,
 			Timezone:  timezone,
-			Method:    method,
+			Method:    0, // no longer used
 		}
 
 		err := services.SavePrayerLocation(location)
