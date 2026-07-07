@@ -1054,12 +1054,39 @@ select.input-field {
 }
 
 /* ============================================================
-   TIME PICKER — Custom Wheel/Spinner
+   TIME PICKER
    ============================================================ */
 .time-picker-row {
   display: flex;
   align-items: center;
   gap: 2px;
+}
+
+.time-select {
+  width: 70px;
+  min-width: 70px;
+  text-align: center;
+  padding-left: 4px;
+  padding-right: 4px;
+  background-image: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-align-last: center;
+}
+
+.time-tz-select {
+  width: 85px;
+  min-width: 85px;
+  text-align: center;
+  font-size: 12px;
+  padding-left: 4px;
+  padding-right: 4px;
+  background-image: none !important;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-align-last: center;
 }
 
 .time-sep {
@@ -1080,90 +1107,6 @@ select.input-field {
 .time-picker-actions .btn-sm {
   font-size: 12px;
   padding: 4px 10px;
-}
-
-/* Wheel Spinner Container */
-.time-spinner {
-  position: relative;
-  width: 64px;
-  height: 120px;
-  overflow: hidden;
-  border: 1px solid var(--bordLight);
-  border-radius: 8px;
-  background: var(--surface);
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.time-spinner-inner {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: transform;
-}
-
-.time-spinner-item {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 40px;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--inkMuted);
-  transition: color 0.1s ease;
-}
-
-.time-spinner-item.active {
-  color: var(--ink);
-  font-weight: 700;
-  font-size: 18px;
-}
-
-/* Highlight bar in the middle */
-.time-spinner-highlight {
-  position: absolute;
-  top: 40px;
-  left: 4px;
-  right: 4px;
-  height: 40px;
-  border-radius: 6px;
-  background: var(--accentLight);
-  pointer-events: none;
-  z-index: 1;
-}
-
-/* Up/Down arrow buttons */
-.time-spinner-arrow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 20px;
-  cursor: pointer;
-  color: var(--inkMuted);
-  transition: color 0.15s ease, background 0.15s ease;
-  position: relative;
-  z-index: 2;
-}
-
-.time-spinner-arrow:hover {
-  color: var(--ink);
-  background: var(--bgSection);
-}
-
-.time-spinner-arrow svg {
-  width: 14px;
-  height: 14px;
-}
-
-/* Hidden native select for form submission */
-.time-spinner-hidden-select {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
 }
 
 /* ============================================================

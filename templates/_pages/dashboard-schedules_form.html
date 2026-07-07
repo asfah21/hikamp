@@ -43,77 +43,17 @@
                     <div class="form-group">
                         <label class="form-label">Begin Time</label>
                         <div class="time-picker-row">
-                            <div x-data="timeSpinner(24, 'beginHour')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="begin_hour" class="time-spinner-hidden-select" x-model="beginHour">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="begin_hour" class="input-field time-select" x-model="beginHour">
+                                {{range $h := seq 24}}<option value="{{printf "%02d" $h}}">{{printf "%02d" $h}}</option>{{end}}
+                            </select>
                             <span class="time-sep">:</span>
-                            <div x-data="timeSpinner(60, 'beginMinute')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="begin_minute" class="time-spinner-hidden-select" x-model="beginMinute">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="begin_minute" class="input-field time-select" x-model="beginMinute">
+                                {{range $m := seq 60}}<option value="{{printf "%02d" $m}}">{{printf "%02d" $m}}</option>{{end}}
+                            </select>
                             <span class="time-sep">:</span>
-                            <div x-data="timeSpinner(60, 'beginSecond')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="begin_second" class="time-spinner-hidden-select" x-model="beginSecond">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="begin_second" class="input-field time-select" x-model="beginSecond">
+                                {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
+                            </select>
                             <input type="hidden" name="begin_time" x-bind:value="beginTimeValue()">
                         </div>
                         <div class="time-picker-actions">
@@ -130,77 +70,17 @@
                     <div class="form-group">
                         <label class="form-label">End Time</label>
                         <div class="time-picker-row">
-                            <div x-data="timeSpinner(24, 'endHour')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="end_hour" class="time-spinner-hidden-select" x-model="endHour">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="end_hour" class="input-field time-select" x-model="endHour">
+                                {{range $h := seq 24}}<option value="{{printf "%02d" $h}}">{{printf "%02d" $h}}</option>{{end}}
+                            </select>
                             <span class="time-sep">:</span>
-                            <div x-data="timeSpinner(60, 'endMinute')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="end_minute" class="time-spinner-hidden-select" x-model="endMinute">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="end_minute" class="input-field time-select" x-model="endMinute">
+                                {{range $m := seq 60}}<option value="{{printf "%02d" $m}}">{{printf "%02d" $m}}</option>{{end}}
+                            </select>
                             <span class="time-sep">:</span>
-                            <div x-data="timeSpinner(60, 'endSecond')">
-                                <div class="time-spinner-arrow" @click="up()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18 15 12 9 6 15"/></svg>
-                                </div>
-                                <div class="time-spinner" @click="cycle()">
-                                    <div class="time-spinner-highlight"></div>
-                                    <div class="time-spinner-inner" x-bind:style="'transform: translateY(-' + (offset * 40) + 'px)'">
-                                        <template x-for="item in items" :key="item">
-                                            <div class="time-spinner-item" x-bind:class="{'active': item === localValue}">
-                                                <span x-text="String(item).padStart(2, '0')"></span>
-                                            </div>
-                                        </template>
-                                    </div>
-                                </div>
-                                <div class="time-spinner-arrow" @click="down()">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-                                </div>
-                                <select name="end_second" class="time-spinner-hidden-select" x-model="endSecond">
-                                    <template x-for="item in items" :key="item">
-                                        <option x-bind:value="item" x-text="String(item).padStart(2, '0')"></option>
-                                    </template>
-                                </select>
-                            </div>
+                            <select name="end_second" class="input-field time-select" x-model="endSecond">
+                                {{range $s := seq 60}}<option value="{{printf "%02d" $s}}">{{printf "%02d" $s}}</option>{{end}}
+                            </select>
                             <input type="hidden" name="end_time" x-bind:value="endTimeValue()">
                         </div>
                         <div class="time-picker-actions">
