@@ -1,7 +1,6 @@
 package services
 
 import (
-	"ego/internal/hikvision"
 	"ego/models"
 	"ego/repositories"
 	"fmt"
@@ -89,11 +88,11 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 	return repositories.SavePrayerBroadcastConfig(c)
 }
 
-// CreatePrayerSchedules creates 5 weekly broadcast schedules on Hikvision devices
+// CreatePrayerSchedules creates daily broadcast schedules in the database
 // (one per prayer time: Fajr, Dhuhr, Asr, Maghrib, Isha).
-// Each schedule repeats every day of the week (dayOfWeek 1-7).
-// Instead of creating 150+ individual daily schedules in the database,
-// this directly syncs 5 weekly schedules to each device.
+// Each schedule uses schedule_type "daily" so it repeats every day when synced.
+// Saves to the broadcast_schedules table (admin/schedules) instead of directly
+// sending to the Hikvision device. The user can then review and sync manually.
 // Returns a list of human-readable warnings/messages for the UI.
 func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	configs, err := repositories.GetPrayerBroadcastConfigs()
@@ -147,17 +146,11 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 		return []string{"No prayer times available. Please generate prayer times first (Prayer Times > Generate)."}
 	}
 
-	// Get timezone offset
-	timezoneOffset := "08:00"
-	if location.Timezone != "" {
-		timezoneOffset = getTimezoneOffset(location.Timezone)
-	}
-
 	var messages []string
 	successCount := 0
 	skipCount := 0
 
-	// For each enabled config, create a weekly schedule on the device
+	// For each enabled config, create a daily schedule in the database
 	for _, cfg := range configs {
 		prayerName := models.PrayerNames[cfg.Prayer]
 
@@ -200,100 +193,35 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 			}
 		}
 
-		// Get device info
 		deviceID := int(cfg.DeviceID.Int64)
 		audioID := int(cfg.AudioID.Int64)
 
-		device, err := repositories.GetDeviceByID(deviceID)
+		// Create schedule in database (daily type = repeats every day)
+		schedule := &models.BroadcastSchedule{
+			Name:         "Prayer: " + prayerName,
+			AudioID:      audioID,
+			DeviceID:     deviceID,
+			ScheduleType: "daily",
+			BeginTime:    prayerTime,
+			EndTime:      endTime,
+			Volume:       cfg.Volume,
+			Enabled:      true,
+			DayOfWeek:    nil,
+			SpecificDate: nil,
+		}
+
+		_, err := repositories.CreateSchedule(schedule)
 		if err != nil {
-			messages = append(messages, fmt.Sprintf("%s: Device not found (ID: %d).", prayerName, deviceID))
-			continue
-		}
-
-		// Get audio file to get HikvisionAudioID
-		audioFile, err := repositories.GetAudioFileByID(audioID)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("%s: Audio file not found (ID: %d).", prayerName, audioID))
-			continue
-		}
-		if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
-			messages = append(messages, fmt.Sprintf("%s: Audio '%s' has not been uploaded to device '%s'. Go to Audio menu and upload first.", prayerName, audioFile.Name, device.Name))
-			continue
-		}
-
-		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
-
-		// Build a weekly schedule that repeats every day (dayOfWeek 1-7)
-		planSchemeID := fmt.Sprintf("prayer_%s_%s", cfg.Prayer, device.IPAddress)
-
-		// Format times for Hikvision
-		beginTimeHik := formatTimeForHikvision(prayerTime, timezoneOffset)
-		endTimeHik := formatTimeForHikvision(endTime, timezoneOffset)
-
-		// Date range: today + 7 days (weekly repeat)
-		today := now.Format("2006-01-02") + "+" + timezoneOffset
-		futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
-
-		// Build weekly schedule with all 7 days
-		weeklyScheduleList := make([]map[string]interface{}, 0, 7)
-		for day := 1; day <= 7; day++ {
-			weeklyScheduleList = append(weeklyScheduleList, map[string]interface{}{
-				"dayOfWeek": day,
-				"scheduleList": []map[string]interface{}{
-					{
-						"beginTime": beginTimeHik,
-						"endTime":   endTimeHik,
-						"playMode":  "order",
-						"operation": map[string]interface{}{
-							"audioSource":   "customAudio",
-							"customAudioID": []int{*audioFile.HikvisionAudioID},
-							"audioLevel":    5,
-							"audioVolume":   cfg.Volume,
-						},
-					},
-				},
-			})
-		}
-
-		payload := map[string]interface{}{
-			"broadcastPlanSchemeList": []map[string]interface{}{
-				{
-					"planSchemeID":   planSchemeID,
-					"planSchemeName": "Prayer: " + prayerName,
-					"enabled":        true,
-					"audioOutID":     []int{1},
-					"weeklyScheduleInfo": map[string]interface{}{
-						"startTime":          today,
-						"stopTime":           futureDate,
-						"weeklyScheduleList": weeklyScheduleList,
-					},
-				},
-			},
-			"terminalInfoList": []map[string]interface{}{
-				{
-					"terminalID": 1,
-					"audioOutID": []int{1},
-				},
-			},
-		}
-
-		// First try to delete existing scheme with same ID
-		_ = client.DeletePlanScheme(planSchemeID)
-		time.Sleep(300 * time.Millisecond)
-
-		// Create the new schedule
-		err = client.CreateSchedule(payload)
-		if err != nil {
-			messages = append(messages, fmt.Sprintf("%s: Failed to create schedule on device '%s': %v", prayerName, device.Name, err))
+			messages = append(messages, fmt.Sprintf("%s: Failed to save schedule: %v", prayerName, err))
 			continue
 		}
 
 		successCount++
-		log.Printf("[PRAYER SCHEDULE] Created weekly schedule for %s on device %s (planSchemeID: %s)", prayerName, device.Name, planSchemeID)
+		log.Printf("[PRAYER SCHEDULE] Created daily schedule for %s (device ID: %d, audio ID: %d)", prayerName, deviceID, audioID)
 	}
 
 	if successCount > 0 {
-		messages = append(messages, fmt.Sprintf("✓ %d prayer schedule(s) created successfully on device(s).", successCount))
+		messages = append(messages, fmt.Sprintf("✓ %d prayer schedule(s) saved to database. Go to Schedules menu to review and sync.", successCount))
 	}
 	if skipCount > 0 {
 		messages = append(messages, fmt.Sprintf("ℹ %d prayer(s) skipped (not enabled).", skipCount))
