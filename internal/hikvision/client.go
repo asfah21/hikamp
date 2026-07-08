@@ -624,11 +624,11 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	// This ensures consistency between scheduled broadcasts and "Broadcast Now".
 	now := time.Now()
 
-	// Add 2 seconds to beginTime so the broadcast starts slightly in the future,
-	// accounting for network/processing delay between sending the request and the device applying it.
-	// This prevents the schedule from being created with a beginTime in the past.
-	beginTime := now.Add(2*time.Second).Format("15:04:05") + "+" + timezoneOffset
-	endTime := now.Add(2*time.Second+time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
+	// Add 62 minutes to beginTime to compensate for timezone offset differences
+	// between the server and the Hikvision device.
+	// This ensures the broadcast starts at the correct local time on the device.
+	beginTime := now.Add(62*time.Minute).Format("15:04:05") + "+" + timezoneOffset
+	endTime := now.Add(62*time.Minute+time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
 
 	// Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
