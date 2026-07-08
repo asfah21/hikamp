@@ -95,7 +95,30 @@ func GetAudioFileByHikvisionID(hikvisionID int) (*models.AudioFile, error) {
 	return f, nil
 }
 
+// GetAudioFilesByDeviceID retrieves all audio files for a specific device
+func GetAudioFilesByDeviceID(deviceID int) ([]models.AudioFile, error) {
+	query := `SELECT id, name, category, duration, duration_str, file_size, hikvision_audio_id, hikvision_path, device_id, created_at, updated_at 
+              FROM audio_files WHERE device_id = $1 ORDER BY hikvision_audio_id ASC NULLS LAST, id ASC`
+	rows, err := database.DB.Query(query, deviceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var files []models.AudioFile
+	for rows.Next() {
+		var f models.AudioFile
+		err := rows.Scan(&f.ID, &f.Name, &f.Category, &f.Duration, &f.DurationStr, &f.FileSize, &f.HikvisionAudioID, &f.HikvisionPath, &f.DeviceID, &f.CreatedAt, &f.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
 // UpsertAudioFileByHikvisionID inserts or updates an audio file by Hikvision audio ID
+
 func UpsertAudioFileByHikvisionID(f *models.AudioFile) (int, error) {
 	var id int
 	query := `INSERT INTO audio_files (name, category, duration, duration_str, file_size, hikvision_audio_id, hikvision_path, device_id) 

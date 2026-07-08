@@ -154,7 +154,7 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 
 	// For each enabled config, create a weekly schedule on the device
 	for _, cfg := range configs {
-		if !cfg.Enabled || cfg.AudioID == 0 || cfg.DeviceID == 0 {
+		if !cfg.Enabled || !cfg.AudioID.Valid || !cfg.DeviceID.Valid {
 			continue
 		}
 
@@ -184,16 +184,19 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 		}
 
 		// Get device info
-		device, err := repositories.GetDeviceByID(cfg.DeviceID)
+		deviceID := int(cfg.DeviceID.Int64)
+		audioID := int(cfg.AudioID.Int64)
+
+		device, err := repositories.GetDeviceByID(deviceID)
 		if err != nil {
-			log.Printf("[PRAYER SCHEDULE] Device ID %d not found: %v", cfg.DeviceID, err)
+			log.Printf("[PRAYER SCHEDULE] Device ID %d not found: %v", deviceID, err)
 			continue
 		}
 
 		// Get audio file to get HikvisionAudioID
-		audioFile, err := repositories.GetAudioFileByID(cfg.AudioID)
+		audioFile, err := repositories.GetAudioFileByID(audioID)
 		if err != nil {
-			log.Printf("[PRAYER SCHEDULE] Audio ID %d not found: %v", cfg.AudioID, err)
+			log.Printf("[PRAYER SCHEDULE] Audio ID %d not found: %v", audioID, err)
 			continue
 		}
 		if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {

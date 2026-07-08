@@ -451,40 +451,11 @@ func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		device, err := services.GetDeviceByID(deviceID)
-		if err != nil || device == nil {
-			http.Error(w, "Device not found", http.StatusNotFound)
-			return
-		}
-
-		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
-		audioList, err := client.SearchAudio()
+		synced, err := services.SyncAudioFromDevice(deviceID)
 		if err != nil {
-			setHXTriggerToast(w, "Failed to fetch audio from device: "+err.Error())
+			setHXTriggerToast(w, "Sync failed: "+err.Error())
 			w.WriteHeader(http.StatusOK)
 			return
-		}
-
-		synced := 0
-		for _, audio := range audioList {
-			hikvisionAudioID := audio.CustomAudioID
-			hikvisionPath := audio.HikvisionPath
-			audioFile := &models.AudioFile{
-				Name:             audio.CustomAudioName,
-				Category:         "Custom",
-				Duration:         audio.Duration,
-				DurationStr:      audio.DurationStr,
-				FileSize:         int64(audio.AudioFileSize),
-				HikvisionAudioID: &hikvisionAudioID,
-				HikvisionPath:    &hikvisionPath,
-				DeviceID:         &deviceID,
-			}
-			_, err := services.UpsertAudioFileByHikvisionID(audioFile)
-			if err != nil {
-				log.Printf("[AUDIO SYNC] Failed to upsert audio '%s': %v", audio.CustomAudioName, err)
-				continue
-			}
-			synced++
 		}
 
 		setHXTriggerToast(w, fmt.Sprintf("Synced %d audio files from device", synced), true)
@@ -495,6 +466,93 @@ func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
 	// GET: render sync form as modal
 	devices, _ := services.GetAllDevices()
 	renderAudioSyncModal(w, devices)
+}
+
+// AdminAudioSyncToDevice syncs audio files from local database to Hikvision device.
+// Deletes device audio that no longer exists in local DB.
+func AdminAudioSyncToDevice(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		deviceIDStr := r.FormValue("device_id")
+		deviceID := 0
+		if deviceIDStr != "" {
+			deviceID, _ = strconv.Atoi(deviceIDStr)
+		}
+
+		if deviceID == 0 {
+			setHXTriggerToast(w, "Please select a device to sync to")
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		deleted, err := services.SyncAudioToDevice(deviceID)
+		if err != nil {
+			setHXTriggerToast(w, "Sync to device failed: "+err.Error())
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		setHXTriggerToast(w, fmt.Sprintf("Synced to device: %d orphan audio(s) removed", deleted), true)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// GET: render sync form as modal
+	devices, _ := services.GetAllDevices()
+	renderAudioSyncToDeviceModal(w, devices)
+}
+
+// renderAudioSyncToDeviceModal renders the sync-to-device modal
+func renderAudioSyncToDeviceModal(w http.ResponseWriter, devices []models.Device) {
+	deviceOptions := ""
+	for _, d := range devices {
+		deviceOptions += fmt.Sprintf(`<option value="%d">%s (%s)</option>`, d.ID, d.Name, d.IPAddress)
+	}
+	if len(devices) == 0 {
+		deviceOptions = `<option value="" disabled>No devices available</option>`
+	}
+
+	html := fmt.Sprintf(`
+<div id="modal-overlay" class="modal-overlay" style="display:flex;">
+    <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+            <h2>Sync Audio to Device</h2>
+            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <p style="margin-bottom: 1rem; color: var(--inkMuted);">
+                Remove orphan audio files from the device that no longer exist in the local database.
+                This mirrors the local database state to the device.
+            </p>
+            <form id="sync-form" hx-post="/admin/audio/sync-to-device" hx-target="#modal-container" hx-swap="innerHTML" hx-indicator="#sync-spinner">
+                <div class="form-group">
+                    <label class="form-label" for="device_id">Device</label>
+                    <select class="input-field" id="device_id" name="device_id" required>
+                        <option value="">Select a device...</option>
+                        %s
+                    </select>
+                </div>
+                <div class="form-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="submit" class="btn btn-primary" id="sync-btn">
+                        <span id="sync-spinner" class="htmx-indicator" style="display: inline-flex; align-items: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; animation: spin 1s linear infinite;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Syncing...
+                        </span>
+                        <span class="htmx-indicator-hidden">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                            Sync to Device
+                        </span>
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>`, deviceOptions)
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprint(w, html)
 }
 
 // AdminAudioDelete handles audio file deletion
@@ -934,8 +992,8 @@ func AdminPrayerBroadcast(w http.ResponseWriter, r *http.Request) {
 		} else {
 			fullConfigs = append(fullConfigs, models.PrayerBroadcastConfig{
 				Prayer:   prayer,
-				AudioID:  0,
-				DeviceID: 0,
+				AudioID:  sql.NullInt64{Valid: false},
+				DeviceID: sql.NullInt64{Valid: false},
 				Volume:   50,
 				Enabled:  false,
 			})
@@ -1114,8 +1172,8 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 
 			cfg := &models.PrayerBroadcastConfig{
 				Prayer:   prayer,
-				AudioID:  audioID,
-				DeviceID: deviceID,
+				AudioID:  sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
+				DeviceID: sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 				Volume:   volume,
 				Enabled:  enabled,
 			}

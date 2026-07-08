@@ -503,11 +503,70 @@ func (c *Client) UploadAudio(audioData io.Reader, filename string) (int, error) 
 	return 0, fmt.Errorf("audio uploaded but could not determine assigned ID")
 }
 
-// DeleteAudio deletes an audio file from the device
+// DeleteAudio deletes an audio file from the device by its customAudioID.
+// Uses the same endpoint as upload but with a DELETE-style payload.
+// From Web UI JS: WSDK_SetDeviceConfig("deleteCustomAudio", null, {type:"POST", data:{customAudioIDList:[id]}})
+// Endpoint: POST /ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json
 func (c *Client) DeleteAudio(audioID int) error {
-	// Endpoint not verified - see docs/hikvision.md
-	// Placeholder for future implementation
-	return fmt.Errorf("DeleteAudio not yet implemented - inspect Hikvision Web UI Network tab first")
+	url := c.BaseURL + "/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json"
+
+	payload := map[string]interface{}{
+		"customAudioIDList": []int{audioID},
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal delete audio payload: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
+	if err != nil {
+		return fmt.Errorf("delete audio request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		logFailedResponse("POST", url, string(jsonData), resp, body)
+		return fmt.Errorf("delete audio failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("[HIKVISION] Audio ID %d deleted successfully", audioID)
+	return nil
+}
+
+// DeleteAudioBatch deletes multiple audio files from the device in a single request.
+// Uses the same endpoint as DeleteAudio but with a list of IDs.
+func (c *Client) DeleteAudioBatch(audioIDs []int) error {
+	if len(audioIDs) == 0 {
+		return nil
+	}
+
+	url := c.BaseURL + "/ISAPI/AccessControl/EventCardLinkageCfg/CustomAudio?format=json"
+
+	payload := map[string]interface{}{
+		"customAudioIDList": audioIDs,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal batch delete audio payload: %w", err)
+	}
+
+	resp, err := c.doRequestWithRetry("POST", url, bytes.NewReader(jsonData), "application/json", 1)
+	if err != nil {
+		return fmt.Errorf("batch delete audio request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode >= 400 {
+		logFailedResponse("POST", url, string(jsonData), resp, body)
+		return fmt.Errorf("batch delete audio failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	log.Printf("[HIKVISION] %d audio(s) deleted successfully", len(audioIDs))
+	return nil
 }
 
 // getLocationFromOffset converts a timezone offset string like "07:00" or "-05:00"

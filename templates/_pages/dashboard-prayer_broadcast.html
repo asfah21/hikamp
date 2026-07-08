@@ -39,7 +39,7 @@
                             <select name="audio_fajr" class="input-field">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg0}}{{if $cfg0.AudioID.Valid}}{{if eq .ID $cfg0.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -47,7 +47,7 @@
                             <select name="device_fajr" class="input-field">
                                 <option value="0">-- Select Device --</option>
                                 {{range $devices}}
-                                <option value="{{.ID}}" {{if $cfg0}}{{if eq .ID $cfg0.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg0}}{{if $cfg0.DeviceID.Valid}}{{if eq .ID $cfg0.DeviceID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -67,7 +67,7 @@
                             <select name="audio_dhuhr" class="input-field">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg1}}{{if $cfg1.AudioID.Valid}}{{if eq .ID $cfg1.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -75,7 +75,7 @@
                             <select name="device_dhuhr" class="input-field">
                                 <option value="0">-- Select Device --</option>
                                 {{range $devices}}
-                                <option value="{{.ID}}" {{if $cfg1}}{{if eq .ID $cfg1.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg1}}{{if $cfg1.DeviceID.Valid}}{{if eq .ID $cfg1.DeviceID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -95,7 +95,7 @@
                             <select name="audio_asr" class="input-field">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg2}}{{if $cfg2.AudioID.Valid}}{{if eq .ID $cfg2.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -103,7 +103,7 @@
                             <select name="device_asr" class="input-field">
                                 <option value="0">-- Select Device --</option>
                                 {{range $devices}}
-                                <option value="{{.ID}}" {{if $cfg2}}{{if eq .ID $cfg2.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg2}}{{if $cfg2.DeviceID.Valid}}{{if eq .ID $cfg2.DeviceID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -123,7 +123,7 @@
                             <select name="audio_maghrib" class="input-field">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg3}}{{if $cfg3.AudioID.Valid}}{{if eq .ID $cfg3.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -131,7 +131,7 @@
                             <select name="device_maghrib" class="input-field">
                                 <option value="0">-- Select Device --</option>
                                 {{range $devices}}
-                                <option value="{{.ID}}" {{if $cfg3}}{{if eq .ID $cfg3.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg3}}{{if $cfg3.DeviceID.Valid}}{{if eq .ID $cfg3.DeviceID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -151,7 +151,7 @@
                             <select name="audio_isha" class="input-field">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.AudioID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg4}}{{if $cfg4.AudioID.Valid}}{{if eq .ID $cfg4.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -159,7 +159,7 @@
                             <select name="device_isha" class="input-field">
                                 <option value="0">-- Select Device --</option>
                                 {{range $devices}}
-                                <option value="{{.ID}}" {{if $cfg4}}{{if eq .ID $cfg4.DeviceID}}selected{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" {{if $cfg4}}{{if $cfg4.DeviceID.Valid}}{{if eq .ID $cfg4.DeviceID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
                                 {{end}}
                             </select>
                         </td>
@@ -196,5 +196,3 @@
 </div>
 {{end}}
 {{end}}
-
-

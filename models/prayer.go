@@ -1,5 +1,7 @@
 package models
 
+import "database/sql"
+
 // PrayerLocation stores location data for prayer time calculation
 type PrayerLocation struct {
 	ID        int     `json:"id"`
@@ -26,12 +28,12 @@ type PrayerTime struct {
 
 // PrayerBroadcastConfig stores audio & device mapping for each prayer time
 type PrayerBroadcastConfig struct {
-	ID       int    `json:"id"`
-	Prayer   string `json:"prayer"` // fajr, dhuhr, asr, maghrib, isha
-	AudioID  int    `json:"audio_id"`
-	DeviceID int    `json:"device_id"`
-	Volume   int    `json:"volume"`
-	Enabled  bool   `json:"enabled"`
+	ID       int           `json:"id"`
+	Prayer   string        `json:"prayer"` // fajr, dhuhr, asr, maghrib, isha
+	AudioID  sql.NullInt64 `json:"audio_id"`
+	DeviceID sql.NullInt64 `json:"device_id"`
+	Volume   int           `json:"volume"`
+	Enabled  bool          `json:"enabled"`
 }
 
 // PrayerNames maps prayer keys to display names
