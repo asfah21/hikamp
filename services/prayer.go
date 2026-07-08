@@ -95,6 +95,7 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 // Saves to the broadcast_schedules table (admin/schedules) instead of directly
 // sending to the Hikvision device. The user can then review and sync manually.
 // Returns a list of human-readable warnings/messages for the UI.
+func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	configs, err := repositories.GetPrayerBroadcastConfigs()
 	if err != nil {
 		return []string{fmt.Sprintf("Failed to load broadcast configs: %v", err)}
