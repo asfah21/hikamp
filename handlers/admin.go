@@ -281,7 +281,7 @@ func renderAudioSyncModal(w http.ResponseWriter, devices []models.Device) {
 <div id="modal-overlay" class="modal-overlay" style="display:flex;">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-            <h2>Sync Audio from Device</h2>
+            <h2>Sync from Device</h2>
             <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -515,7 +515,7 @@ func renderAudioSyncToDeviceModal(w http.ResponseWriter, devices []models.Device
 <div id="modal-overlay" class="modal-overlay" style="display:flex;">
     <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-            <h2>Sync Audio to Device</h2>
+            <h2>Sync to Device</h2>
             <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
@@ -1184,18 +1184,22 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 
 		// After saving broadcast configs, create weekly schedules on devices
 		location, err := services.GetPrayerLocation()
+		var messages []string
 		if err == nil && location != nil {
-			if err := services.CreatePrayerSchedules(location, 30); err != nil {
-				log.Printf("[PRAYER BROADCAST] Failed to create schedules: %v", err)
-				setHXTriggerToast(w, "Settings saved, but failed to create schedules on device: "+err.Error())
-				w.WriteHeader(http.StatusOK)
-				return
-			}
+			messages = services.CreatePrayerSchedules(location, 30)
+		} else {
+			messages = []string{"Location not set. Please set location in Prayer Settings first."}
 		}
 
-		setHXTriggerToast(w, "Prayer broadcast settings saved. Weekly schedules created on devices.", true)
+		// Build toast message from all messages
+		toastMsg := "Settings saved."
+		for _, m := range messages {
+			toastMsg += " " + m
+		}
+		setHXTriggerToast(w, toastMsg, true)
 		w.WriteHeader(http.StatusOK)
 		return
+
 	}
 }
 
@@ -1217,14 +1221,12 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		err = services.CreatePrayerSchedules(location, days)
-		if err != nil {
-			setHXTriggerToast(w, "Failed to create schedules: "+err.Error())
-			w.WriteHeader(http.StatusOK)
-			return
+		messages := services.CreatePrayerSchedules(location, days)
+		toastMsg := ""
+		for _, m := range messages {
+			toastMsg += " " + m
 		}
-
-		setHXTriggerToast(w, "Weekly prayer schedules created on devices", true)
+		setHXTriggerToast(w, toastMsg, true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}

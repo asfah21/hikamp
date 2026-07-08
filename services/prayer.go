@@ -94,10 +94,11 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 // Each schedule repeats every day of the week (dayOfWeek 1-7).
 // Instead of creating 150+ individual daily schedules in the database,
 // this directly syncs 5 weekly schedules to each device.
-func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
+// Returns a list of human-readable warnings/messages for the UI.
+func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	configs, err := repositories.GetPrayerBroadcastConfigs()
 	if err != nil {
-		return err
+		return []string{fmt.Sprintf("Failed to load broadcast configs: %v", err)}
 	}
 
 	now := time.Now()
@@ -113,7 +114,7 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 	prayerTimes, err := repositories.GetPrayerTimes(startDate, endDate)
 	if err != nil {
 		log.Printf("[PRAYER SCHEDULE] No prayer times found for range %s to %s: %v", startDate, endDate, err)
-		return nil // not a fatal error — configs are still saved
+		return []string{"No prayer times found. Please generate prayer times first (Prayer Times > Generate)."}
 	}
 
 	// Group prayer times by prayer name to get the first occurrence
@@ -143,7 +144,7 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 	// If still no prayer times, just log and return (configs are saved)
 	if len(todayTimes) == 0 {
 		log.Printf("[PRAYER SCHEDULE] No prayer times available. Generate prayer times first.")
-		return nil
+		return []string{"No prayer times available. Please generate prayer times first (Prayer Times > Generate)."}
 	}
 
 	// Get timezone offset
@@ -152,14 +153,30 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
+	var messages []string
+	successCount := 0
+	skipCount := 0
+
 	// For each enabled config, create a weekly schedule on the device
 	for _, cfg := range configs {
-		if !cfg.Enabled || !cfg.AudioID.Valid || !cfg.DeviceID.Valid {
+		prayerName := models.PrayerNames[cfg.Prayer]
+
+		if !cfg.Enabled {
+			skipCount++
+			continue
+		}
+		if !cfg.AudioID.Valid {
+			messages = append(messages, fmt.Sprintf("%s: No audio selected.", prayerName))
+			continue
+		}
+		if !cfg.DeviceID.Valid {
+			messages = append(messages, fmt.Sprintf("%s: No device selected.", prayerName))
 			continue
 		}
 
 		prayerTime := todayTimes[cfg.Prayer]
 		if prayerTime == "" {
+			messages = append(messages, fmt.Sprintf("%s: Prayer time not found.", prayerName))
 			continue
 		}
 
@@ -189,25 +206,24 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 
 		device, err := repositories.GetDeviceByID(deviceID)
 		if err != nil {
-			log.Printf("[PRAYER SCHEDULE] Device ID %d not found: %v", deviceID, err)
+			messages = append(messages, fmt.Sprintf("%s: Device not found (ID: %d).", prayerName, deviceID))
 			continue
 		}
 
 		// Get audio file to get HikvisionAudioID
 		audioFile, err := repositories.GetAudioFileByID(audioID)
 		if err != nil {
-			log.Printf("[PRAYER SCHEDULE] Audio ID %d not found: %v", audioID, err)
+			messages = append(messages, fmt.Sprintf("%s: Audio file not found (ID: %d).", prayerName, audioID))
 			continue
 		}
 		if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
-			log.Printf("[PRAYER SCHEDULE] Audio '%s' has no Hikvision audio ID. Upload to device first.", audioFile.Name)
+			messages = append(messages, fmt.Sprintf("%s: Audio '%s' has not been uploaded to device '%s'. Go to Audio menu and upload first.", prayerName, audioFile.Name, device.Name))
 			continue
 		}
 
 		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 		// Build a weekly schedule that repeats every day (dayOfWeek 1-7)
-		prayerName := models.PrayerNames[cfg.Prayer]
 		planSchemeID := fmt.Sprintf("prayer_%s_%s", cfg.Prayer, device.IPAddress)
 
 		// Format times for Hikvision
@@ -268,12 +284,20 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 		// Create the new schedule
 		err = client.CreateSchedule(payload)
 		if err != nil {
-			log.Printf("[PRAYER SCHEDULE] Failed to create schedule for %s on device %s: %v", prayerName, device.Name, err)
+			messages = append(messages, fmt.Sprintf("%s: Failed to create schedule on device '%s': %v", prayerName, device.Name, err))
 			continue
 		}
 
+		successCount++
 		log.Printf("[PRAYER SCHEDULE] Created weekly schedule for %s on device %s (planSchemeID: %s)", prayerName, device.Name, planSchemeID)
 	}
 
-	return nil
+	if successCount > 0 {
+		messages = append(messages, fmt.Sprintf("✓ %d prayer schedule(s) created successfully on device(s).", successCount))
+	}
+	if skipCount > 0 {
+		messages = append(messages, fmt.Sprintf("ℹ %d prayer(s) skipped (not enabled).", skipCount))
+	}
+
+	return messages
 }

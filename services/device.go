@@ -76,8 +76,7 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
-	// Get timezone offset from location settings for proper time formatting
-	// Note: getTimezoneOffset returns WITHOUT "+" prefix (Web UI format: "08:00")
+	// Get timezone offset from location settings (same approach as SyncScheduleToDevice)
 	timezoneOffset := "08:00" // default fallback
 	location, err := repositories.GetPrayerLocation()
 	if err == nil && location.Timezone != "" {
@@ -85,6 +84,7 @@ func BroadcastToDevice(device *models.Device, audioID int, volume int, durationM
 	}
 
 	return client.BroadcastNowWithTimezone(*audioFile.HikvisionAudioID, volume, durationMinutes, timezoneOffset)
+
 }
 
 // StopBroadcastOnDevice stops all active broadcasts on a device.

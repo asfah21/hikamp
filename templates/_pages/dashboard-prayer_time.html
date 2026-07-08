@@ -34,17 +34,18 @@
         <tbody id="prayer-tbody">
             {{range $prayerTimes}}
             <tr>
-                <td><strong>{{.Date}}</strong></td>
-                <td><span class="badge badge-primary">{{.Fajr}}</span></td>
-                <td>{{.Dhuhr}}</td>
-                <td>{{.Asr}}</td>
-                <td><span class="badge badge-warning">{{.Maghrib}}</span></td>
-                <td>{{.Isha}}</td>
+                <td class="prayer-date">{{.Date}}</td>
+                <td class="prayer-time">{{.Fajr}}</td>
+                <td class="prayer-time">{{.Dhuhr}}</td>
+                <td class="prayer-time">{{.Asr}}</td>
+                <td class="prayer-time">{{.Maghrib}}</td>
+                <td class="prayer-time">{{.Isha}}</td>
             </tr>
             {{else}}
             <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No prayer times generated yet. Click "Generate" to create prayer times for the next 30 days.</td></tr>
             {{end}}
         </tbody>
+
     </table>
 </div>
 
