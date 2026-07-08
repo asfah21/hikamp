@@ -603,7 +603,13 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 }
 
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
-// The timezoneOffset should be in format like "08:00" (WITHOUT "+" prefix, the "+" is added as separator).
+// The timezoneOffset should be in format like "07:00" or "-05:00" (WITHOUT "+" prefix).
+//
+// IMPORTANT: Hikvision Web UI always hardcodes "+08:00" in time strings regardless of
+// the device's actual timezone. The device ignores the timezone offset in beginTime/endTime
+// and only reads the HH:MM:SS portion. Therefore we must send the time in the device's
+// local timezone, not the server's timezone.
+//
 // Strategy:
 //  1. First try ModifyPlanScheme (non-destructive, preserves other schedules).
 //  2. If ModifyPlanScheme returns 403 (some firmware versions), fall back to:
@@ -612,10 +618,11 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 //
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
-	// Parse the timezone offset to get the target location
-	// timezoneOffset is like "07:00" or "-05:00"
+	// Get current UTC time, then convert to the target timezone
+	// time.Now().In(loc) does NOT change the actual time value, only the zone label.
+	// To get the correct local time, we must start from UTC and add the offset.
 	loc := getLocationFromOffset(timezoneOffset)
-	now := time.Now().In(loc)
+	now := time.Now().UTC().In(loc)
 
 	// Add 2 seconds to beginTime so the broadcast starts slightly in the future,
 	// accounting for network/processing delay between sending the request and the device applying it.

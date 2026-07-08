@@ -60,3 +60,9 @@ func DeleteSchedule(id int) error {
 	_, err := database.DB.Exec("DELETE FROM broadcast_schedules WHERE id = $1", id)
 	return err
 }
+
+// DeleteSchedulesByDevice deletes all schedules for a specific device
+func DeleteSchedulesByDevice(deviceID int) error {
+	_, err := database.DB.Exec("DELETE FROM broadcast_schedules WHERE device_id = $1", deviceID)
+	return err
+}
