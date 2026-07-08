@@ -88,10 +88,9 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 	return repositories.SavePrayerBroadcastConfig(c)
 }
 
-// CreatePrayerSchedules creates weekly broadcast schedules in the database
+// CreatePrayerSchedules creates daily broadcast schedules in the database
 // (one per prayer time: Fajr, Dhuhr, Asr, Maghrib, Isha).
-// Each schedule uses schedule_type "weekly" with today's dayOfWeek so it repeats
-// every week on the same day when synced to the Hikvision device.
+// Each schedule uses schedule_type "daily" so it repeats every day.
 // Saves to the broadcast_schedules table (admin/schedules) instead of directly
 // sending to the Hikvision device. The user can then review and sync manually.
 // Returns a list of human-readable warnings/messages for the UI.
@@ -174,52 +173,55 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 			continue
 		}
 
-		// Calculate end time: prayer time + broadcast duration (from config, default 5 minutes)
-		durationMin := cfg.Duration
-		if durationMin <= 0 {
-			durationMin = 5
+		// Ensure prayer time is in HH:MM:SS format (pad :00 if only HH:MM)
+		if strings.Count(prayerTime, ":") == 1 {
+			prayerTime = prayerTime + ":00"
 		}
+
+		// Lookup audio file to get its duration in seconds
+		audioID := int(cfg.AudioID.Int64)
+		audioFile, err := repositories.GetAudioFileByID(audioID)
+		audioDurationSec := 0
+		if err == nil && audioFile != nil {
+			audioDurationSec = audioFile.Duration
+		}
+		if audioDurationSec <= 0 {
+			audioDurationSec = 300 // default 5 minutes = 300 seconds
+		}
+
+		// Calculate end time: prayer time + audio duration (in seconds)
 		endTime := prayerTime
 		if parts := strings.Split(prayerTime, ":"); len(parts) >= 2 {
 			h, _ := strconv.Atoi(parts[0])
 			m, _ := strconv.Atoi(parts[1])
-			totalMin := h*60 + m + durationMin
-			endH := totalMin / 60
-			endM := totalMin % 60
-			if endH >= 24 {
-				endH = 23
-				endM = 59
+			s := 0
+			if len(parts) >= 3 {
+				s, _ = strconv.Atoi(parts[2])
 			}
-			if len(parts) == 2 {
-				endTime = fmt.Sprintf("%02d:%02d", endH, endM)
-			} else {
-				s, _ := strconv.Atoi(parts[2])
-				endTime = fmt.Sprintf("%02d:%02d:%02d", endH, endM, s)
-			}
+			totalSec := h*3600 + m*60 + s + audioDurationSec
+			endH := (totalSec / 3600) % 24
+			endM := (totalSec % 3600) / 60
+			endS := totalSec % 60
+			endTime = fmt.Sprintf("%02d:%02d:%02d", endH, endM, endS)
 		}
 
 		deviceID := int(cfg.DeviceID.Int64)
-		audioID := int(cfg.AudioID.Int64)
 
-		// Create schedule in database (weekly type = repeats every week on the same day)
-		dayOfWeek := int(now.Weekday())
-		if dayOfWeek == 0 {
-			dayOfWeek = 7 // Go's Weekday() returns 0 for Sunday, Hikvision uses 1=Mon..7=Sun
-		}
+		// Create schedule in database (daily type = repeats every day)
 		schedule := &models.BroadcastSchedule{
 			Name:         "Prayer: " + prayerName,
 			AudioID:      audioID,
 			DeviceID:     deviceID,
-			ScheduleType: "weekly",
+			ScheduleType: "daily",
 			BeginTime:    prayerTime,
 			EndTime:      endTime,
 			Volume:       cfg.Volume,
 			Enabled:      true,
-			DayOfWeek:    &dayOfWeek,
+			DayOfWeek:    nil,
 			SpecificDate: nil,
 		}
 
-		_, err := repositories.CreateSchedule(schedule)
+		_, err = repositories.CreateSchedule(schedule)
 		if err != nil {
 			messages = append(messages, fmt.Sprintf("%s: Failed to save schedule: %v", prayerName, err))
 			continue

@@ -1001,20 +1001,11 @@ func AdminPrayerBroadcast(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Build a map of audio ID -> duration (in minutes) for the template
-	audioDurationMap := make(map[int]int)
-	for _, a := range audioFiles {
-		if a.Duration > 0 {
-			audioDurationMap[a.ID] = (a.Duration + 59) / 60 // ceil seconds to minutes
-		}
-	}
-
 	data := map[string]interface{}{
 		"Location":         location,
 		"BroadcastConfigs": fullConfigs,
 		"Devices":          devices,
 		"Audio":            audioFiles,
-		"AudioDurationMap": audioDurationMap,
 	}
 	RenderDashboard(w, r, "prayer_broadcast", data)
 }
@@ -1178,7 +1169,6 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 			audioID, _ := strconv.Atoi(r.FormValue("audio_" + prayer))
 			deviceID, _ := strconv.Atoi(r.FormValue("device_" + prayer))
 			volume, _ := strconv.Atoi(r.FormValue("volume_" + prayer))
-			duration, _ := strconv.Atoi(r.FormValue("duration_" + prayer))
 			enabled := r.FormValue("enabled_"+prayer) == "on"
 
 			cfg := &models.PrayerBroadcastConfig{
@@ -1186,7 +1176,7 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 				AudioID:  sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
 				DeviceID: sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 				Volume:   volume,
-				Duration: duration,
+				Duration: 0,
 				Enabled:  enabled,
 			}
 			if err := services.SavePrayerBroadcastConfig(cfg); err != nil {
