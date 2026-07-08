@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // jsonEscape escapes a string for safe embedding in a JSON string value.
@@ -896,7 +897,8 @@ func AdminPrayerTime(w http.ResponseWriter, r *http.Request) {
 
 	var prayerTimes []models.PrayerTime
 	if location != nil {
-		prayerTimes, _ = services.GetUpcomingPrayerTimes(7)
+		// Get all available prayer times (up to 365 days)
+		prayerTimes, _ = services.GetUpcomingPrayerTimes(365)
 	}
 
 	data := map[string]interface{}{
@@ -1120,29 +1122,19 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 			services.SavePrayerBroadcastConfig(cfg)
 		}
 
-		// After saving broadcast configs, sync schedules to devices
+		// After saving broadcast configs, create weekly schedules on devices
 		location, err := services.GetPrayerLocation()
 		if err == nil && location != nil {
-			// Generate schedules for the next 30 days and sync to devices
-			go func() {
-				services.CreatePrayerSchedules(location, 30)
-				// Sync all enabled schedules to their devices
-				schedules, _ := services.GetAllSchedules()
-				for _, s := range schedules {
-					if s.Enabled {
-						services.SyncScheduleToDevice(s.ID)
-					}
-				}
-			}()
+			go services.CreatePrayerSchedules(location, 30)
 		}
 
-		setHXTriggerToast(w, "Prayer broadcast settings saved and synced to devices", true)
+		setHXTriggerToast(w, "Prayer broadcast settings saved. Weekly schedules created on devices.", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 }
 
-// AdminPrayerCreateSchedules creates broadcast schedules from prayer times
+// AdminPrayerCreateSchedules creates weekly prayer schedules on devices
 func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		location, err := services.GetPrayerLocation()
@@ -1167,17 +1159,7 @@ func AdminPrayerCreateSchedules(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Sync all enabled schedules to their devices
-		go func() {
-			schedules, _ := services.GetAllSchedules()
-			for _, s := range schedules {
-				if s.Enabled {
-					services.SyncScheduleToDevice(s.ID)
-				}
-			}
-		}()
-
-		setHXTriggerToast(w, "Prayer schedules created for "+strconv.Itoa(days)+" days and synced to devices", true)
+		setHXTriggerToast(w, "Weekly prayer schedules created on devices", true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -1351,9 +1333,10 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		// Send broadcast to the Hikvision device
 		err = services.BroadcastToDevice(device, audioID, volume, totalMinutes)
 		if err != nil {
+			now := time.Now().Format("2006-01-02 15:04:05")
 			// Log the failed broadcast
 			log := &models.BroadcastLog{
-				Time:       r.FormValue("time"),
+				Time:       now,
 				DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 				DeviceName: device.Name,
 				AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
@@ -1369,9 +1352,10 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		now := time.Now().Format("2006-01-02 15:04:05")
 		// Log the successful broadcast
 		log := &models.BroadcastLog{
-			Time:       r.FormValue("time"),
+			Time:       now,
 			DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 			DeviceName: device.Name,
 			AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},

@@ -4,10 +4,23 @@
         <input type="text" class="input-field" placeholder="Search audio files..." name="q" hx-get="/admin/audio" hx-trigger="keyup changed delay:500ms" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">
     </div>
     <div style="display: flex; gap: 0.5rem;">
-        <a href="/admin/audio/sync" class="btn btn-secondary" hx-get="/admin/audio/sync" hx-target="#modal-container" hx-trigger="click">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-            Sync from Device
-        </a>
+        <div class="btn-group" style="position: relative; display: inline-block;">
+            <button class="btn btn-secondary" onclick="this.nextElementSibling.classList.toggle('show')" style="display: flex; align-items: center; gap: 0.25rem;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Sync
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; min-width: 200px; background: var(--surface); border: 1px solid var(--bordLight); border-radius: 8px; box-shadow: var(--shadow2); z-index: 100; overflow: hidden;">
+                <a href="#" class="dropdown-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; color: var(--ink); text-decoration: none; transition: background 0.15s;" hx-get="/admin/audio/upload" hx-target="#modal-container" hx-trigger="click" onclick="this.closest('.dropdown-menu').classList.remove('show')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                    Sync to Device
+                </a>
+                <a href="#" class="dropdown-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; color: var(--ink); text-decoration: none; transition: background 0.15s;" hx-get="/admin/audio/sync" hx-target="#modal-container" hx-trigger="click" onclick="this.closest('.dropdown-menu').classList.remove('show')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
+                    Sync from Device
+                </a>
+            </div>
+        </div>
         <a href="/admin/audio/upload" class="btn btn-primary" hx-get="/admin/audio/upload" hx-target="#modal-container" hx-trigger="click">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Upload Audio

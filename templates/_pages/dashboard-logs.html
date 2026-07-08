@@ -1,6 +1,12 @@
 {{define "content"}}
+<div class="page-header">
+    <div class="search-bar">
+        <input type="text" class="input-field" placeholder="Search logs..." name="q" hx-get="/admin/logs" hx-trigger="keyup changed delay:500ms" hx-target="#main-content" hx-swap="innerHTML" hx-push-url="true">
+    </div>
+</div>
+
 <div class="table-container">
-    <table class="table">
+    <table class="table" id="logs-table">
         <thead>
             <tr>
                 <th>Time</th>
@@ -9,10 +15,9 @@
                 <th>Result</th>
                 <th>Duration</th>
                 <th>Status</th>
-                <th>Error</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="logs-tbody">
             {{range .Data}}
             <tr>
                 <td>{{.Time}}</td>
@@ -21,12 +26,112 @@
                 <td><span class="badge {{if eq .Result "success"}}badge-success{{else}}badge-error{{end}}">{{.Result}}</span></td>
                 <td>{{.Duration}}s</td>
                 <td>{{.Status}}</td>
-                <td>{{if .ErrorMessage}}<span class="badge badge-error">{{.ErrorMessage}}</span>{{else}}-{{end}}</td>
             </tr>
             {{else}}
-            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No broadcast logs yet.</td></tr>
+            <tr><td colspan="6" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No broadcast logs yet.</td></tr>
             {{end}}
         </tbody>
     </table>
 </div>
+
+<div id="logs-pagination" class="pagination-bar" style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; gap: 1rem; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--inkMuted); font-size: 13px;">
+        <span>Show</span>
+        <select id="page-size-select" class="input-field" style="width: auto; padding: 0.25rem 0.5rem; font-size: 13px;" onchange="updatePagination()">
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="0">All</option>
+        </select>
+        <span>entries</span>
+    </div>
+    <div class="pagination-controls" style="display: flex; align-items: center; gap: 0.25rem;">
+        <button class="btn btn-sm btn-ghost" onclick="goToPage(1)" id="page-first" disabled title="First">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+        <button class="btn btn-sm btn-ghost" onclick="goToPage(currentPage - 1)" id="page-prev" disabled title="Previous">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span id="page-info" style="padding: 0 0.5rem; font-size: 13px; color: var(--inkMuted); white-space: nowrap;">Page 1 of 1</span>
+        <button class="btn btn-sm btn-ghost" onclick="goToPage(currentPage + 1)" id="page-next" disabled title="Next">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+        <button class="btn btn-sm btn-ghost" onclick="goToPage(totalPages)" id="page-last" disabled title="Last">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+        </button>
+    </div>
+</div>
+
+<script>
+let currentPage = 1;
+let totalPages = 1;
+let allRows = [];
+
+function initPagination() {
+    const tbody = document.getElementById('logs-tbody');
+    allRows = Array.from(tbody.querySelectorAll('tr'));
+    // Exclude the "no data" row
+    if (allRows.length === 1 && allRows[0].querySelector('td') && allRows[0].querySelector('td').getAttribute('colspan')) {
+        // No data, hide pagination
+        document.getElementById('logs-pagination').style.display = 'none';
+        return;
+    }
+    updatePagination();
+}
+
+function updatePagination() {
+    const sizeSelect = document.getElementById('page-size-select');
+    let pageSize = parseInt(sizeSelect.value);
+    
+    if (pageSize === 0) {
+        // Show all
+        document.getElementById('logs-pagination').style.display = 'none';
+        allRows.forEach(row => row.style.display = '');
+        return;
+    }
+    
+    document.getElementById('logs-pagination').style.display = 'flex';
+    
+    totalPages = Math.ceil(allRows.length / pageSize);
+    if (totalPages < 1) totalPages = 1;
+    
+    // Reset to page 1 if current page exceeds total
+    if (currentPage > totalPages) currentPage = 1;
+    
+    showPage(currentPage, pageSize);
+}
+
+function showPage(page, pageSize) {
+    currentPage = page;
+    
+    const start = (page - 1) * pageSize;
+    const end = Math.min(start + pageSize, allRows.length);
+    
+    allRows.forEach((row, index) => {
+        row.style.display = (index >= start && index < end) ? '' : 'none';
+    });
+    
+    document.getElementById('page-info').textContent = 'Page ' + page + ' of ' + totalPages;
+    document.getElementById('page-first').disabled = page <= 1;
+    document.getElementById('page-prev').disabled = page <= 1;
+    document.getElementById('page-next').disabled = page >= totalPages;
+    document.getElementById('page-last').disabled = page >= totalPages;
+}
+
+function goToPage(page) {
+    const pageSize = parseInt(document.getElementById('page-size-select').value);
+    if (pageSize === 0) return;
+    if (page < 1 || page > totalPages) return;
+    showPage(page, pageSize);
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', initPagination);
+// Also run after HTMX swaps
+document.body.addEventListener('htmx:afterSwap', function(evt) {
+    if (evt.detail.target && evt.detail.target.id === 'main-content') {
+        setTimeout(initPagination, 50);
+    }
+});
+</script>
 {{end}}

@@ -90,7 +90,9 @@ func GeneratePrayerTimesForRange(latitude, longitude float64, timezone string, s
 	return results
 }
 
-// normalizeTime converts decimal hours to HH:MM string, normalized to 0-24
+// normalizeTime converts decimal hours to HH:MM string, normalized to 0-24.
+// Uses truncation (floor) for minutes to match standard Islamic prayer time
+// calculation methods used by Kemenag RI and most mobile apps.
 func normalizeTime(decimalHours float64) string {
 	h := math.Mod(decimalHours, 24.0)
 	if h < 0 {
@@ -98,9 +100,9 @@ func normalizeTime(decimalHours float64) string {
 	}
 
 	hours := int(h)
-	minutes := int(math.Round((h - float64(hours)) * 60))
+	minutes := int((h - float64(hours)) * 60)
 
-	// Handle rounding overflow
+	// Handle overflow
 	if minutes >= 60 {
 		hours++
 		minutes = 0
