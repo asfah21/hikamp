@@ -62,7 +62,7 @@ func SavePrayerTime(t *models.PrayerTime) error {
 
 // GetPrayerBroadcastConfigs retrieves all prayer broadcast configs
 func GetPrayerBroadcastConfigs() ([]models.PrayerBroadcastConfig, error) {
-	query := `SELECT id, prayer, audio_id, device_id, volume, enabled FROM prayer_broadcast_configs ORDER BY 
+	query := `SELECT id, prayer, audio_id, device_id, volume, duration, enabled FROM prayer_broadcast_configs ORDER BY 
 		CASE prayer 
 			WHEN 'fajr' THEN 1 
 			WHEN 'dhuhr' THEN 2 
@@ -79,7 +79,7 @@ func GetPrayerBroadcastConfigs() ([]models.PrayerBroadcastConfig, error) {
 	var configs []models.PrayerBroadcastConfig
 	for rows.Next() {
 		var c models.PrayerBroadcastConfig
-		err := rows.Scan(&c.ID, &c.Prayer, &c.AudioID, &c.DeviceID, &c.Volume, &c.Enabled)
+		err := rows.Scan(&c.ID, &c.Prayer, &c.AudioID, &c.DeviceID, &c.Volume, &c.Duration, &c.Enabled)
 		if err != nil {
 			return nil, err
 		}
@@ -93,11 +93,11 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 	var count int
 	database.DB.QueryRow("SELECT COUNT(*) FROM prayer_broadcast_configs WHERE prayer = $1", c.Prayer).Scan(&count)
 	if count > 0 {
-		_, err := database.DB.Exec(`UPDATE prayer_broadcast_configs SET audio_id=$1, device_id=$2, volume=$3, enabled=$4 WHERE prayer=$5`,
-			c.AudioID, c.DeviceID, c.Volume, c.Enabled, c.Prayer)
+		_, err := database.DB.Exec(`UPDATE prayer_broadcast_configs SET audio_id=$1, device_id=$2, volume=$3, duration=$4, enabled=$5 WHERE prayer=$6`,
+			c.AudioID, c.DeviceID, c.Volume, c.Duration, c.Enabled, c.Prayer)
 		return err
 	}
-	_, err := database.DB.Exec(`INSERT INTO prayer_broadcast_configs (prayer, audio_id, device_id, volume, enabled) VALUES ($1, $2, $3, $4, $5)`,
-		c.Prayer, c.AudioID, c.DeviceID, c.Volume, c.Enabled)
+	_, err := database.DB.Exec(`INSERT INTO prayer_broadcast_configs (prayer, audio_id, device_id, volume, duration, enabled) VALUES ($1, $2, $3, $4, $5, $6)`,
+		c.Prayer, c.AudioID, c.DeviceID, c.Volume, c.Duration, c.Enabled)
 	return err
 }

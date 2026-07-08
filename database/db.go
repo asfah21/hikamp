@@ -194,6 +194,9 @@ func createTables() {
 		}
 	}
 
+	// Migration: add duration column to prayer_broadcast_configs if it doesn't exist
+	DB.Exec(`ALTER TABLE prayer_broadcast_configs ADD COLUMN IF NOT EXISTS duration INTEGER DEFAULT 0`)
+
 	// Migration: add sample_rate column to audio_files if it doesn't exist
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS sample_rate INTEGER DEFAULT 0`)
 

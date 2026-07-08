@@ -33,6 +33,7 @@ type PrayerBroadcastConfig struct {
 	AudioID  sql.NullInt64 `json:"audio_id"`
 	DeviceID sql.NullInt64 `json:"device_id"`
 	Volume   int           `json:"volume"`
+	Duration int           `json:"duration"` // in minutes, auto-filled from audio file length
 	Enabled  bool          `json:"enabled"`
 }
 

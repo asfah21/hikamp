@@ -3,6 +3,7 @@
 {{$broadcastConfigs := .Data.BroadcastConfigs}}
 {{$devices := .Data.Devices}}
 {{$audio := .Data.Audio}}
+{{$audioDurationMap := .Data.AudioDurationMap}}
 
 <div class="page-header">
     <div>
@@ -21,6 +22,7 @@
                     <tr>
                         <th>Prayer</th>
                         <th>Audio</th>
+                        <th style="width: 100px;">Duration</th>
                         <th>Device</th>
                         <th style="width: 80px;">Volume</th>
                         <th style="width: 80px;">Enabled</th>
@@ -36,12 +38,16 @@
                     <tr>
                         <td><strong>Fajr</strong></td>
                         <td>
-                            <select name="audio_fajr" class="input-field">
+                            <select name="audio_fajr" class="input-field audio-select" data-duration-target="duration_fajr">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg0}}{{if $cfg0.AudioID.Valid}}{{if eq .ID $cfg0.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" data-duration="{{index $audioDurationMap .ID}}" {{if $cfg0}}{{if $cfg0.AudioID.Valid}}{{if eq .ID $cfg0.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                                 {{end}}
                             </select>
+                        </td>
+                        <td>
+                            <input type="number" name="duration_fajr" id="duration_fajr" value="{{if $cfg0}}{{$cfg0.Duration}}{{else}}5{{end}}" min="1" max="999" class="input-field" style="width: 70px;">
+                            <small style="color: var(--inkMuted); font-size: 11px; display: block;">minutes</small>
                         </td>
                         <td>
                             <select name="device_fajr" class="input-field">
@@ -64,12 +70,16 @@
                     <tr>
                         <td><strong>Dhuhr</strong></td>
                         <td>
-                            <select name="audio_dhuhr" class="input-field">
+                            <select name="audio_dhuhr" class="input-field audio-select" data-duration-target="duration_dhuhr">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg1}}{{if $cfg1.AudioID.Valid}}{{if eq .ID $cfg1.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" data-duration="{{index $audioDurationMap .ID}}" {{if $cfg1}}{{if $cfg1.AudioID.Valid}}{{if eq .ID $cfg1.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                                 {{end}}
                             </select>
+                        </td>
+                        <td>
+                            <input type="number" name="duration_dhuhr" id="duration_dhuhr" value="{{if $cfg1}}{{$cfg1.Duration}}{{else}}5{{end}}" min="1" max="999" class="input-field" style="width: 70px;">
+                            <small style="color: var(--inkMuted); font-size: 11px; display: block;">minutes</small>
                         </td>
                         <td>
                             <select name="device_dhuhr" class="input-field">
@@ -92,12 +102,16 @@
                     <tr>
                         <td><strong>Asr</strong></td>
                         <td>
-                            <select name="audio_asr" class="input-field">
+                            <select name="audio_asr" class="input-field audio-select" data-duration-target="duration_asr">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg2}}{{if $cfg2.AudioID.Valid}}{{if eq .ID $cfg2.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" data-duration="{{index $audioDurationMap .ID}}" {{if $cfg2}}{{if $cfg2.AudioID.Valid}}{{if eq .ID $cfg2.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                                 {{end}}
                             </select>
+                        </td>
+                        <td>
+                            <input type="number" name="duration_asr" id="duration_asr" value="{{if $cfg2}}{{$cfg2.Duration}}{{else}}5{{end}}" min="1" max="999" class="input-field" style="width: 70px;">
+                            <small style="color: var(--inkMuted); font-size: 11px; display: block;">minutes</small>
                         </td>
                         <td>
                             <select name="device_asr" class="input-field">
@@ -120,12 +134,16 @@
                     <tr>
                         <td><strong>Maghrib</strong></td>
                         <td>
-                            <select name="audio_maghrib" class="input-field">
+                            <select name="audio_maghrib" class="input-field audio-select" data-duration-target="duration_maghrib">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg3}}{{if $cfg3.AudioID.Valid}}{{if eq .ID $cfg3.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" data-duration="{{index $audioDurationMap .ID}}" {{if $cfg3}}{{if $cfg3.AudioID.Valid}}{{if eq .ID $cfg3.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                                 {{end}}
                             </select>
+                        </td>
+                        <td>
+                            <input type="number" name="duration_maghrib" id="duration_maghrib" value="{{if $cfg3}}{{$cfg3.Duration}}{{else}}5{{end}}" min="1" max="999" class="input-field" style="width: 70px;">
+                            <small style="color: var(--inkMuted); font-size: 11px; display: block;">minutes</small>
                         </td>
                         <td>
                             <select name="device_maghrib" class="input-field">
@@ -148,12 +166,16 @@
                     <tr>
                         <td><strong>Isha</strong></td>
                         <td>
-                            <select name="audio_isha" class="input-field">
+                            <select name="audio_isha" class="input-field audio-select" data-duration-target="duration_isha">
                                 <option value="0">-- Select Audio --</option>
                                 {{range $audio}}
-                                <option value="{{.ID}}" {{if $cfg4}}{{if $cfg4.AudioID.Valid}}{{if eq .ID $cfg4.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}</option>
+                                <option value="{{.ID}}" data-duration="{{index $audioDurationMap .ID}}" {{if $cfg4}}{{if $cfg4.AudioID.Valid}}{{if eq .ID $cfg4.AudioID.Int64}}selected{{end}}{{end}}{{end}}>{{.Name}}{{if .DurationStr}} ({{.DurationStr}}){{end}}</option>
                                 {{end}}
                             </select>
+                        </td>
+                        <td>
+                            <input type="number" name="duration_isha" id="duration_isha" value="{{if $cfg4}}{{$cfg4.Duration}}{{else}}5{{end}}" min="1" max="999" class="input-field" style="width: 70px;">
+                            <small style="color: var(--inkMuted); font-size: 11px; display: block;">minutes</small>
                         </td>
                         <td>
                             <select name="device_isha" class="input-field">
@@ -184,6 +206,20 @@
         </div>
     </form>
 </div>
+
+<script>
+// Auto-fill duration from selected audio (in minutes, ceil of seconds)
+document.querySelectorAll('.audio-select').forEach(function(select) {
+    select.addEventListener('change', function() {
+        var option = this.options[this.selectedIndex];
+        var durationSec = parseInt(option.getAttribute('data-duration')) || 0;
+        var targetId = this.getAttribute('data-duration-target');
+        if (targetId && durationSec > 0) {
+            document.getElementById(targetId).value = durationSec;
+        }
+    });
+});
+</script>
 {{else}}
 <div class="dashboard-panel" style="max-width: 500px; margin: 2rem auto; text-align: center;">
     <div class="dashboard-panel-body" style="padding: 3rem;">

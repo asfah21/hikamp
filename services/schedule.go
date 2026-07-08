@@ -284,7 +284,7 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 // and mirrors them to the local database.
 // Device is the source of truth — this replaces ALL local schedules for that device
 // with the schedules from the device (mirror: delete old, insert new).
-// Note: Some firmware versions do not support SearchPlanScheme (GET) and return
+// Note: Some firmware versions do not support SearchPlanScheme (POST) and return
 // 403 "methodNotAllowed". In that case, sync-from-device is not possible.
 func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	device, err := repositories.GetDeviceByID(deviceID)
@@ -327,11 +327,13 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 		}
 
 		planSchemeID, _ := scheme["planSchemeID"].(string)
+		planSchemeName, _ := scheme["planSchemeName"].(string)
 		enabled, _ := scheme["enabled"].(bool)
 
-		// Try to extract schedule info from dailyscheduleInfo or weeklyScheduleInfo
+		// Try to extract schedule info from dailyscheduleInfo or weklyScheduleInfo (Hikvision typo)
 		var beginTime, endTime string
 		var scheduleType string = "daily"
+		var dayOfWeek int
 
 		if dailyInfo, ok := scheme["dailyscheduleInfo"].(map[string]interface{}); ok {
 			if list, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok && len(list) > 0 {
@@ -340,10 +342,31 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 					endTime, _ = entry["endTime"].(string)
 				}
 			}
+		}
+
+		// Check both "weklyScheduleInfo" (Hikvision typo) and "weeklyScheduleInfo" (correct)
+		if weeklyInfo, ok := scheme["weklyScheduleInfo"].(map[string]interface{}); ok {
+			scheduleType = "weekly"
+			if list, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(list) > 0 {
+				if entry, ok := list[0].(map[string]interface{}); ok {
+					if d, ok := entry["dayOfWeek"].(float64); ok {
+						dayOfWeek = int(d)
+					}
+					if schedList, ok := entry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
+						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
+							beginTime, _ = schedEntry["beginTime"].(string)
+							endTime, _ = schedEntry["endTime"].(string)
+						}
+					}
+				}
+			}
 		} else if weeklyInfo, ok := scheme["weeklyScheduleInfo"].(map[string]interface{}); ok {
 			scheduleType = "weekly"
 			if list, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(list) > 0 {
 				if entry, ok := list[0].(map[string]interface{}); ok {
+					if d, ok := entry["dayOfWeek"].(float64); ok {
+						dayOfWeek = int(d)
+					}
 					if schedList, ok := entry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
 						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
 							beginTime, _ = schedEntry["beginTime"].(string)
@@ -359,8 +382,11 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 		beginTime = re.ReplaceAllString(beginTime, "")
 		endTime = re.ReplaceAllString(endTime, "")
 
-		// Generate a name from the planSchemeID
-		name := planSchemeID
+		// Use planSchemeName if available, fall back to planSchemeID
+		name := planSchemeName
+		if name == "" {
+			name = planSchemeID
+		}
 		if name == "" {
 			name = fmt.Sprintf("Imported Schedule %d", synced+1)
 		}
@@ -374,6 +400,10 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 			EndTime:      endTime,
 			Volume:       50,
 			Enabled:      enabled,
+		}
+
+		if scheduleType == "weekly" && dayOfWeek > 0 {
+			schedule.DayOfWeek = &dayOfWeek
 		}
 
 		_, err := repositories.CreateSchedule(schedule)

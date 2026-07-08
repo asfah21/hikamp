@@ -88,13 +88,13 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 	return repositories.SavePrayerBroadcastConfig(c)
 }
 
-// CreatePrayerSchedules creates daily broadcast schedules in the database
+// CreatePrayerSchedules creates weekly broadcast schedules in the database
 // (one per prayer time: Fajr, Dhuhr, Asr, Maghrib, Isha).
-// Each schedule uses schedule_type "daily" so it repeats every day when synced.
+// Each schedule uses schedule_type "weekly" with today's dayOfWeek so it repeats
+// every week on the same day when synced to the Hikvision device.
 // Saves to the broadcast_schedules table (admin/schedules) instead of directly
 // sending to the Hikvision device. The user can then review and sync manually.
 // Returns a list of human-readable warnings/messages for the UI.
-func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	configs, err := repositories.GetPrayerBroadcastConfigs()
 	if err != nil {
 		return []string{fmt.Sprintf("Failed to load broadcast configs: %v", err)}
@@ -173,12 +173,16 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 			continue
 		}
 
-		// Calculate end time: prayer time + broadcast duration (default 5 minutes)
+		// Calculate end time: prayer time + broadcast duration (from config, default 5 minutes)
+		durationMin := cfg.Duration
+		if durationMin <= 0 {
+			durationMin = 5
+		}
 		endTime := prayerTime
 		if parts := strings.Split(prayerTime, ":"); len(parts) >= 2 {
 			h, _ := strconv.Atoi(parts[0])
 			m, _ := strconv.Atoi(parts[1])
-			totalMin := h*60 + m + 5 // add 5 minutes
+			totalMin := h*60 + m + durationMin
 			endH := totalMin / 60
 			endM := totalMin % 60
 			if endH >= 24 {
@@ -196,17 +200,21 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 		deviceID := int(cfg.DeviceID.Int64)
 		audioID := int(cfg.AudioID.Int64)
 
-		// Create schedule in database (daily type = repeats every day)
+		// Create schedule in database (weekly type = repeats every week on the same day)
+		dayOfWeek := int(now.Weekday())
+		if dayOfWeek == 0 {
+			dayOfWeek = 7 // Go's Weekday() returns 0 for Sunday, Hikvision uses 1=Mon..7=Sun
+		}
 		schedule := &models.BroadcastSchedule{
 			Name:         "Prayer: " + prayerName,
 			AudioID:      audioID,
 			DeviceID:     deviceID,
-			ScheduleType: "daily",
+			ScheduleType: "weekly",
 			BeginTime:    prayerTime,
 			EndTime:      endTime,
 			Volume:       cfg.Volume,
 			Enabled:      true,
-			DayOfWeek:    nil,
+			DayOfWeek:    &dayOfWeek,
 			SpecificDate: nil,
 		}
 
