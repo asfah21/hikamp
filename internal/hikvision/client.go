@@ -594,10 +594,10 @@ func getLocationFromOffset(offset string) *time.Location {
 	return time.FixedZone(fmt.Sprintf("UTC%+03d:%02d", hours, mins), totalSecs)
 }
 
-// BroadcastNow broadcasts audio immediately using AddPlanScheme with an immediate schedule.
-// Creates a temporary schedule that starts now+2s and ends after the specified duration.
-// Uses the verified payload structure from the official Hikvision Web UI.
-// Uses UTC timezone (device ignores timezone offset, only reads HH:MM:SS).
+// BroadcastNow broadcasts audio immediately using ModifyPlanScheme with an immediate schedule.
+// Creates a temporary schedule that starts in ~62 minutes and ends after the specified duration.
+// Uses ModifyPlanScheme (non-destructive) — adds the broadcast without touching existing schedules.
+// startTime/stopTime are set to today only (1-day schedule).
 func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) error {
 	return c.BroadcastNowWithTimezone(audioID, volume, durationMinutes, "00:00")
 }
@@ -605,34 +605,24 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "07:00" or "-05:00" (WITHOUT "+" prefix).
 //
-// IMPORTANT: Hikvision Web UI always hardcodes "+08:00" in time strings regardless of
-// the device's actual timezone. The device ignores the timezone offset in beginTime/endTime
-// and only reads the HH:MM:SS portion. Therefore we must send the time in the device's
-// local timezone, not the server's timezone.
-//
-// Strategy:
-//  1. First try ModifyPlanScheme (non-destructive, preserves other schedules).
-//  2. If ModifyPlanScheme returns 403 (some firmware versions), fall back to:
-//     SearchPlanScheme → merge existing schedules + broadcast_now → AddPlanScheme.
-//     This preserves existing schedules while adding the broadcast_now entry.
+// IMPORTANT: Uses ModifyPlanScheme which is NON-DESTRUCTIVE — it only adds or updates
+// the specific plan scheme without touching existing schedules on the device.
+// startTime/stopTime are set to today only (1-day schedule), so the broadcast
+// automatically expires after today.
 //
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
-	// Use the same approach as SyncScheduleToDevice (admin/schedules):
-	// time.Now() returns server local time, then we append the timezone offset.
-	// The Hikvision device reads the HH:MM:SS portion and applies its own timezone logic.
-	// This ensures consistency between scheduled broadcasts and "Broadcast Now".
 	now := time.Now()
 
 	// Add 62 minutes to beginTime to compensate for timezone offset differences
 	// between the server and the Hikvision device.
-	// This ensures the broadcast starts at the correct local time on the device.
 	beginTime := now.Add(62*time.Minute).Format("15:04:05") + "+" + timezoneOffset
 	endTime := now.Add(62*time.Minute+time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
 
 	// Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
-	dateStr := now.Format("2006-01-02") + "+" + timezoneOffset
+	// Both start and stop are set to today only — 1-day schedule.
+	today := now.Format("2006-01-02") + "+" + timezoneOffset
 
 	broadcastNowScheme := map[string]interface{}{
 		"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
@@ -640,8 +630,8 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		"enabled":        true,
 		"audioOutID":     []int{1},
 		"dailyScheduleInfo": map[string]interface{}{
-			"startTime": dateStr,
-			"stopTime":  dateStr,
+			"startTime": today,
+			"stopTime":  today,
 			"dailyScheduleList": []map[string]interface{}{
 				{
 					"beginTime": beginTime,
@@ -658,8 +648,9 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	// Strategy 1: Try ModifyPlanScheme first (non-destructive)
-	modifyPayload := map[string]interface{}{
+	// Use ModifyPlanScheme — non-destructive, only adds/updates this specific scheme
+	// without touching existing schedules on the device.
+	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			broadcastNowScheme,
 		},
@@ -671,45 +662,7 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	err := c.ModifyPlanScheme(modifyPayload)
-	if err == nil {
-		return nil // Success with non-destructive approach
-	}
-
-	// If ModifyPlanScheme succeeded at HTTP level but returned 4xx, check if it's 403
-	log.Printf("[BROADCAST NOW] ModifyPlanScheme failed: %v — falling back to AddPlanScheme with merge", err)
-
-	// Strategy 2: Fallback — search existing schedules, merge with broadcast_now, use AddPlanScheme
-	existingSchemes := []map[string]interface{}{}
-	schemes, searchErr := c.SearchPlanScheme()
-	if searchErr == nil {
-		if schemesMap, ok := schemes.(map[string]interface{}); ok {
-			if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
-				for _, item := range list {
-					if scheme, ok := item.(map[string]interface{}); ok {
-						existingSchemes = append(existingSchemes, scheme)
-					}
-				}
-			}
-		}
-	}
-
-	// Build the full payload with existing schemes + broadcast_now
-	allSchemes := []map[string]interface{}{}
-	allSchemes = append(allSchemes, existingSchemes...)
-	allSchemes = append(allSchemes, broadcastNowScheme)
-
-	addPayload := map[string]interface{}{
-		"broadcastPlanSchemeList": allSchemes,
-		"terminalInfoList": []map[string]interface{}{
-			{
-				"terminalID": 1,
-				"audioOutID": []int{1},
-			},
-		},
-	}
-
-	return c.CreateSchedule(addPayload)
+	return c.ModifyPlanScheme(payload)
 }
 
 // StopBroadcast stops all active broadcasts on the device.
