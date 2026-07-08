@@ -7,7 +7,7 @@ import (
 
 // GetAllLogs retrieves all broadcast logs
 func GetAllLogs() ([]models.BroadcastLog, error) {
-	query := `SELECT id, time, device_id, device_name, audio_id, audio_name, result, duration, status, error_message, created_at 
+	query := `SELECT id, COALESCE(time, created_at::text), device_id, device_name, audio_id, audio_name, result, duration, status, error_message, created_at 
               FROM broadcast_logs ORDER BY id DESC`
 	rows, err := database.DB.Query(query)
 	if err != nil {
@@ -38,7 +38,7 @@ func CreateLog(l *models.BroadcastLog) (int, error) {
 
 // GetTodayLogs retrieves today's broadcast logs
 func GetTodayLogs() ([]models.BroadcastLog, error) {
-	query := `SELECT id, time, device_id, device_name, audio_id, audio_name, result, duration, status, error_message, created_at 
+	query := `SELECT id, COALESCE(time, created_at::text), device_id, device_name, audio_id, audio_name, result, duration, status, error_message, created_at 
               FROM broadcast_logs WHERE DATE(created_at) = CURRENT_DATE ORDER BY id DESC`
 	rows, err := database.DB.Query(query)
 	if err != nil {

@@ -1159,3 +1159,12 @@ select.input-field {
 [data-theme="dark"] .leaflet-control-attribution a {
   color: #aaa;
 }
+
+/* Dropdown menu — show when .show class is toggled */
+.dropdown-menu.show {
+  display: block !important;
+}
+
+.dropdown-item:hover {
+  background: var(--bgSection);
+}

@@ -1119,13 +1119,20 @@ func AdminPrayerBroadcastSave(w http.ResponseWriter, r *http.Request) {
 				Volume:   volume,
 				Enabled:  enabled,
 			}
-			services.SavePrayerBroadcastConfig(cfg)
+			if err := services.SavePrayerBroadcastConfig(cfg); err != nil {
+				log.Printf("[PRAYER BROADCAST] Failed to save config for %s: %v", prayer, err)
+			}
 		}
 
 		// After saving broadcast configs, create weekly schedules on devices
 		location, err := services.GetPrayerLocation()
 		if err == nil && location != nil {
-			go services.CreatePrayerSchedules(location, 30)
+			if err := services.CreatePrayerSchedules(location, 30); err != nil {
+				log.Printf("[PRAYER BROADCAST] Failed to create schedules: %v", err)
+				setHXTriggerToast(w, "Settings saved, but failed to create schedules on device: "+err.Error())
+				w.WriteHeader(http.StatusOK)
+				return
+			}
 		}
 
 		setHXTriggerToast(w, "Prayer broadcast settings saved. Weekly schedules created on devices.", true)

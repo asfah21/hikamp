@@ -112,7 +112,8 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 
 	prayerTimes, err := repositories.GetPrayerTimes(startDate, endDate)
 	if err != nil {
-		return err
+		log.Printf("[PRAYER SCHEDULE] No prayer times found for range %s to %s: %v", startDate, endDate, err)
+		return nil // not a fatal error — configs are still saved
 	}
 
 	// Group prayer times by prayer name to get the first occurrence
@@ -137,6 +138,12 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) error {
 		todayTimes["asr"] = pt.Asr
 		todayTimes["maghrib"] = pt.Maghrib
 		todayTimes["isha"] = pt.Isha
+	}
+
+	// If still no prayer times, just log and return (configs are saved)
+	if len(todayTimes) == 0 {
+		log.Printf("[PRAYER SCHEDULE] No prayer times available. Generate prayer times first.")
+		return nil
 	}
 
 	// Get timezone offset
