@@ -142,44 +142,57 @@
         <h2 class="db-card-title">Device Status</h2>
         <p class="db-card-desc">Live connectivity overview</p>
       </div>
-      <div class="db-status-ring">
+      <div class="db-status-ring"
+           x-data="deviceDonut({{$data.OnlineDevices}}, {{$data.OfflineDevices}}, {{$data.TotalDevices}})">
         <div class="db-status-ring-visual">
-          <svg width="120" height="120" viewBox="0 0 120 120">
+          <svg width="200" height="200" viewBox="0 0 200 200">
             <!-- Background ring -->
-            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bordLight)" stroke-width="8"/>
+            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--bordLight)" stroke-width="14"/>
+            <!-- Offline arc (remaining portion) -->
+            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--bord)" stroke-width="14"
+                    stroke-dasharray="515.22" stroke-dashoffset="0"
+                    stroke-linecap="butt" transform="rotate(-90 100 100)"
+                    x-show="offlinePct > 0 && offlinePct < 100"
+                    :stroke-dashoffset="offlineOffset"/>
             <!-- Online arc -->
-            {{$totalDevices := $data.TotalDevices}}
-            {{$onlineDevices := $data.OnlineDevices}}
-            {{if gt $totalDevices 0}}
-            {{$onlinePct := div (mul $onlineDevices 100) $totalDevices}}
-            {{$circumference := 326.73}}
-            {{$offset := sub $circumference (div (mul $circumference $onlinePct) 100)}}
-            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--success)" stroke-width="8"
-                    stroke-dasharray="{{$circumference}}" stroke-dashoffset="{{$offset}}"
-                    stroke-linecap="round" transform="rotate(-90 60 60)"
+            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--success)" stroke-width="14"
+                    stroke-dasharray="515.22" stroke-dashoffset="0"
+                    stroke-linecap="butt" transform="rotate(-90 100 100)"
+                    :stroke-dashoffset="onlineOffset"
                     style="transition: stroke-dashoffset 0.8s ease;"/>
-            {{end}}
+            <!-- Center circle (mask) -->
+            <circle cx="100" cy="100" r="62" fill="var(--surface)" stroke="none"/>
           </svg>
           <div class="db-status-ring-center">
-            <span class="db-status-ring-pct">{{if gt $totalDevices 0}}{{div (mul $onlineDevices 100) $totalDevices}}%{{else}}—{{end}}</span>
-            <span class="db-status-ring-label">Online</span>
+            <span class="db-status-ring-total" x-text="total"></span>
+            <span class="db-status-ring-label">Total Devices</span>
           </div>
         </div>
         <div class="db-status-legend">
           <div class="db-status-legend-item">
             <span class="db-status-dot db-status-dot-online"></span>
-            <span class="db-status-legend-label">Online</span>
-            <span class="db-status-legend-value">{{$data.OnlineDevices}}</span>
+            <div class="db-status-legend-info">
+              <span class="db-status-legend-label">Online</span>
+              <span class="db-status-legend-pct" x-text="onlinePct + '%'"></span>
+            </div>
+            <span class="db-status-legend-value" x-text="online"></span>
           </div>
           <div class="db-status-legend-item">
             <span class="db-status-dot db-status-dot-offline"></span>
-            <span class="db-status-legend-label">Offline</span>
-            <span class="db-status-legend-value">{{$data.OfflineDevices}}</span>
+            <div class="db-status-legend-info">
+              <span class="db-status-legend-label">Offline</span>
+              <span class="db-status-legend-pct" x-text="offlinePct + '%'"></span>
+            </div>
+            <span class="db-status-legend-value" x-text="offline"></span>
           </div>
-          <div class="db-status-legend-item">
+          <div class="db-status-legend-divider"></div>
+          <div class="db-status-legend-item db-status-legend-item-total">
             <span class="db-status-dot db-status-dot-total"></span>
-            <span class="db-status-legend-label">Total</span>
-            <span class="db-status-legend-value">{{$data.TotalDevices}}</span>
+            <div class="db-status-legend-info">
+              <span class="db-status-legend-label">Total</span>
+              <span class="db-status-legend-pct">100%</span>
+            </div>
+            <span class="db-status-legend-value" x-text="total"></span>
           </div>
         </div>
       </div>
@@ -257,6 +270,28 @@
         });
       }
     }
+  }
+
+  function deviceDonut(online, offline, total) {
+    const circumference = 2 * Math.PI * 82; // r=82
+    const onlinePct = total > 0 ? Math.round((online / total) * 100) : 0;
+    const offlinePct = total > 0 ? Math.round((offline / total) * 100) : 0;
+    const onlineOffset = total > 0 ? circumference - (onlinePct / 100) * circumference : circumference;
+    const offlineOffset = total > 0 ? circumference - (offlinePct / 100) * circumference : circumference;
+    return {
+      online,
+      offline,
+      total,
+      onlinePct,
+      offlinePct,
+      get onlineOffset() {
+        // When 100%, dashoffset = 0 (full circle). When 0%, dashoffset = circumference (hidden).
+        return total > 0 ? circumference - (onlinePct / 100) * circumference : circumference;
+      },
+      get offlineOffset() {
+        return total > 0 ? circumference - (offlinePct / 100) * circumference : circumference;
+      }
+    };
   }
 </script>
 {{end}}

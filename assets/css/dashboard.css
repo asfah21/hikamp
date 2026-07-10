@@ -1202,7 +1202,7 @@ select.input-field {
 
 /* --- Page Layout --- */
 .db-page {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -1545,7 +1545,7 @@ select.input-field {
   color: var(--inkMuted);
 }
 
-/* --- Device Status Ring --- */
+/* --- Device Status Donut Chart --- */
 .db-status-ring {
   padding: var(--space-lg);
   display: flex;
@@ -1556,24 +1556,33 @@ select.input-field {
 
 .db-status-ring-visual {
   position: relative;
-  width: 120px;
-  height: 120px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+.db-status-ring-visual svg {
+  display: block;
+  width: 200px;
+  height: 200px;
 }
 
 .db-status-ring-center {
   position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
+  justify-content: center;
+  pointer-events: none;
 }
 
-.db-status-ring-pct {
-  font-size: 1.5rem;
-  font-weight: 700;
+.db-status-ring-total {
+  font-size: 2.25rem;
+  font-weight: 800;
   color: var(--ink);
   letter-spacing: -0.03em;
   line-height: 1;
@@ -1581,34 +1590,89 @@ select.input-field {
 
 .db-status-ring-label {
   font-size: 0.75rem;
-  color: var(--inkMuted);
   font-weight: 500;
+  color: var(--inkMuted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
+/* --- Legend --- */
 .db-status-legend {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  max-width: 200px;
+  max-width: 240px;
 }
 
 .db-status-legend-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.8125rem;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
+.db-status-legend-item:hover {
+  background: var(--bgSection);
+}
+
+.db-status-legend-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.db-status-legend-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.db-status-legend-pct {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--inkSubtle);
+}
+
+.db-status-legend-value {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+  text-align: right;
+  min-width: 28px;
+}
+
+.db-status-legend-divider {
+  height: 1px;
+  background: var(--bordLight);
+  margin: 2px 0;
+}
+
+.db-status-legend-item-total .db-status-legend-label {
+  font-weight: 600;
+}
+
+.db-status-legend-item-total .db-status-legend-value {
+  font-weight: 800;
+}
+
+/* --- Legend Dots --- */
 .db-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .db-status-dot-online {
   background: #059669;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.15);
 }
 
 .db-status-dot-offline {
@@ -1616,17 +1680,34 @@ select.input-field {
 }
 
 .db-status-dot-total {
-  background: var(--inkMuted);
+  background: var(--ink);
 }
 
-.db-status-legend-label {
-  flex: 1;
-  color: var(--inkMuted);
+/* --- Status Link (kept for compatibility) --- */
+.db-status-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  align-self: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
 }
 
-.db-status-legend-value {
-  font-weight: 600;
-  color: var(--ink);
+.db-status-link:hover {
+  background: var(--accentLight);
+}
+
+.db-status-link svg {
+  transition: transform 0.15s ease;
+}
+
+.db-status-link:hover svg {
+  transform: translateX(2px);
 }
 
 /* --- Table Card --- */
