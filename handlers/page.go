@@ -52,17 +52,20 @@ func RenderDashboard(w http.ResponseWriter, r *http.Request, page string, data i
 // getPageTitle returns the title for a given page
 func getPageTitle(page string) string {
 	titles := map[string]string{
-		"dashboard":      "Dashboard",
-		"devices":        "Devices",
-		"devices_form":   "Device",
-		"audio":          "Audio Library",
-		"audio_upload":   "Upload Audio",
-		"schedules":      "Broadcast Schedules",
-		"schedules_form": "Schedule",
-		"logs":           "Broadcast Logs",
-		"prayer":         "Prayer Schedule",
-		"settings":       "Settings",
-		"broadcast_now":  "Manual Broadcast",
+		"dashboard":        "Dashboard",
+		"devices":          "Devices",
+		"devices_form":     "Device",
+		"audio":            "Audio Library",
+		"audio_upload":     "Upload Audio",
+		"schedules":        "Broadcast Schedules",
+		"schedules_form":   "Schedule",
+		"logs":             "Broadcast Logs",
+		"prayer":           "Prayer Schedule",
+		"prayer_setting":   "Prayer Settings",
+		"prayer_time":      "Prayer Times",
+		"prayer_broadcast": "Prayer Broadcast",
+		"settings":         "Settings",
+		"broadcast_now":    "Manual Broadcast",
 	}
 	if title, ok := titles[page]; ok {
 		return title
