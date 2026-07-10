@@ -470,91 +470,46 @@ func AdminAudioSync(w http.ResponseWriter, r *http.Request) {
 	renderAudioSyncModal(w, devices)
 }
 
-// AdminAudioSyncToDevice syncs audio files from local database to Hikvision device.
+// AdminAudioSyncToDevice syncs audio files from local database to all enabled Hikvision devices.
 // Deletes device audio that no longer exists in local DB.
 func AdminAudioSyncToDevice(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		deviceIDStr := r.FormValue("device_id")
-		deviceID := 0
-		if deviceIDStr != "" {
-			deviceID, _ = strconv.Atoi(deviceIDStr)
-		}
+	if r.Method != "POST" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 
-		if deviceID == 0 {
-			setHXTriggerToast(w, "Please select a device to sync to")
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		deleted, err := services.SyncAudioToDevice(deviceID)
-		if err != nil {
-			setHXTriggerToast(w, "Sync to device failed: "+err.Error())
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		setHXTriggerToast(w, fmt.Sprintf("Synced to device: %d orphan audio(s) removed", deleted), true)
+	devices, err := services.GetAllDevices()
+	if err != nil {
+		setHXTriggerToast(w, "Failed to get devices: "+err.Error())
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	// GET: render sync form as modal
-	devices, _ := services.GetAllDevices()
-	renderAudioSyncToDeviceModal(w, devices)
-}
-
-// renderAudioSyncToDeviceModal renders the sync-to-device modal
-func renderAudioSyncToDeviceModal(w http.ResponseWriter, devices []models.Device) {
-	deviceOptions := ""
+	var lastErr error
+	totalDeleted := 0
+	syncedDevices := 0
 	for _, d := range devices {
-		deviceOptions += fmt.Sprintf(`<option value="%d">%s (%s)</option>`, d.ID, d.Name, d.IPAddress)
-	}
-	if len(devices) == 0 {
-		deviceOptions = `<option value="" disabled>No devices available</option>`
+		if !d.Enabled {
+			continue
+		}
+		deleted, err := services.SyncAudioToDevice(d.ID)
+		if err != nil {
+			log.Printf("[AUDIO SYNC TO] Failed on device %s: %v", d.Name, err)
+			lastErr = err
+			continue
+		}
+		totalDeleted += deleted
+		syncedDevices++
 	}
 
-	html := fmt.Sprintf(`
-<div id="modal-overlay" class="modal-overlay" style="display:flex;">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2>Sync to Device</h2>
-            <button class="btn btn-sm btn-ghost" onclick="document.getElementById('modal-overlay').remove()">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <div class="modal-body">
-            <p style="margin-bottom: 1rem; color: var(--inkMuted);">
-                Remove orphan audio files from the device that no longer exist in the local database.
-                This mirrors the local database state to the device.
-            </p>
-            <form id="sync-form" hx-post="/admin/audio/sync-to-device" hx-target="#modal-container" hx-swap="innerHTML" hx-indicator="#sync-spinner">
-                <div class="form-group">
-                    <label class="form-label" for="device_id">Device</label>
-                    <select class="input-field" id="device_id" name="device_id" required>
-                        <option value="">Select a device...</option>
-                        %s
-                    </select>
-                </div>
-                <div class="form-actions" style="margin-top: 1.5rem; display: flex; gap: 0.5rem; align-items: center;">
-                    <button type="submit" class="btn btn-primary" id="sync-btn">
-                        <span id="sync-spinner" class="htmx-indicator" style="display: inline-flex; align-items: center;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem; animation: spin 1s linear infinite;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-                            Syncing...
-                        </span>
-                        <span class="htmx-indicator-hidden">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 0.5rem;"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-                            Sync to Device
-                        </span>
-                    </button>
-                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-overlay').remove()">Cancel</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>`, deviceOptions)
-
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprint(w, html)
+	if syncedDevices > 0 {
+		setHXTriggerToast(w, fmt.Sprintf("Synced to %d device(s): %d orphan audio(s) removed", syncedDevices, totalDeleted), true)
+	} else if lastErr != nil {
+		setHXTriggerToast(w, "Sync to device failed: "+lastErr.Error())
+	} else {
+		setHXTriggerToast(w, "No enabled devices available to sync")
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // AdminAudioDelete handles audio file deletion

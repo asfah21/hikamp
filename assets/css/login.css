@@ -394,22 +394,23 @@
 
 @media (max-width: 768px) {
   .login-page {
-    padding: 1rem;
+    padding: 0;
     align-items: flex-start;
-    padding-top: 2rem;
+    min-height: 100dvh;
   }
 
   .login-card {
     flex-direction: column;
-    min-height: auto;
-    border-radius: 12px;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+    min-height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
   }
 
   .login-brand {
     min-width: auto;
     padding: 2rem 1.5rem 1.5rem;
-    border-radius: 12px 12px 0 0;
+    border-radius: 0;
   }
 
   .login-brand-icon {
@@ -439,6 +440,8 @@
   .login-form-panel {
     min-width: auto;
     padding: 1.5rem 1.5rem 2rem;
+    flex: 1;
+    justify-content: flex-start;
   }
 
   .login-form-header {
@@ -453,35 +456,139 @@
     max-width: 100%;
   }
 
-  .login-version {
-    position: static;
-    transform: none;
-    text-align: center;
-    padding: 1rem 0 0.5rem;
-  }
-}
-
-@media (max-width: 400px) {
-  .login-page {
-    padding: 0.5rem;
-    padding-top: 1rem;
-  }
-
-  .login-brand {
-    padding: 1.5rem 1rem 1.25rem;
-  }
-
-  .login-form-panel {
-    padding: 1.25rem 1rem 1.5rem;
+  .login-form {
+    gap: 1rem;
   }
 
   .login-input {
-    padding: 0.625rem 0.75rem 0.625rem 2.5rem;
+    padding: 0.75rem 0.875rem 0.75rem 2.75rem;
     font-size: 16px; /* Prevent zoom on iOS */
   }
 
   .login-btn {
-    padding: 0.6875rem 1rem;
+    padding: 0.8125rem 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 0;
+  }
+
+  .login-brand {
+    padding: 1.5rem 1.25rem 1.25rem;
+  }
+
+  .login-brand-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    margin-bottom: 0.75rem;
+  }
+
+  .login-brand-icon svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .login-brand-title {
+    font-size: 1.125rem;
+  }
+
+  .login-brand-subtitle {
+    font-size: 0.75rem;
+  }
+
+  .login-form-panel {
+    padding: 1.25rem 1.25rem 1.5rem;
+  }
+
+  .login-form-title {
+    font-size: 1.125rem;
+  }
+
+  .login-form-subtitle {
+    font-size: 0.8125rem;
+  }
+
+  .login-form {
+    gap: 0.875rem;
+  }
+
+  .login-field {
+    gap: 0.25rem;
+  }
+
+  .login-label {
+    font-size: 0.75rem;
+  }
+
+  .login-input {
+    padding: 0.6875rem 0.75rem 0.6875rem 2.5rem;
+  }
+
+  .login-input-icon {
+    left: 0.75rem;
+  }
+
+  .login-input-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .login-btn {
+    padding: 0.75rem 1rem;
+    font-size: 0.8125rem;
+  }
+
+  .login-alert {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.8125rem;
+    margin-bottom: 1rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .login-brand {
+    padding: 1.25rem 1rem 1rem;
+  }
+
+  .login-brand-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+  }
+
+  .login-brand-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .login-brand-title {
+    font-size: 1rem;
+  }
+
+  .login-form-panel {
+    padding: 1rem 1rem 1.25rem;
+  }
+
+  .login-form-header {
+    margin-bottom: 1rem;
+  }
+
+  .login-form-title {
+    font-size: 1rem;
+  }
+
+  .login-input {
+    padding: 0.625rem 0.625rem 0.625rem 2.25rem;
+    font-size: 16px;
+  }
+
+  .login-btn {
+    padding: 0.6875rem 0.875rem;
+    font-size: 0.8125rem;
   }
 }
 

@@ -15,7 +15,7 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
                     Sync from Device
                 </a>
-                <a href="#" class="dropdown-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; color: var(--ink); text-decoration: none; transition: background 0.15s;" hx-get="/admin/audio/upload" hx-target="#modal-container" hx-trigger="click" onclick="this.closest('.dropdown-menu').classList.remove('show')">
+                <a href="#" class="dropdown-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; color: var(--ink); text-decoration: none; transition: background 0.15s;" hx-post="/admin/audio/sync-to-device" hx-target="#main-content" hx-swap="innerHTML" hx-trigger="click" onclick="this.closest('.dropdown-menu').classList.remove('show')">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Sync to Device
                 </a>
