@@ -423,16 +423,18 @@ func AdminAudioUpload(w http.ResponseWriter, r *http.Request) {
 		if user == nil {
 			user = &models.User{Name: "Admin", Username: "admin"}
 		}
+		devices, _ := services.GetAllDevices()
 		pageData := templates.PageData{
 			Title: "Upload Audio",
 			User:  user,
-			Data:  nil,
+			Data:  devices,
 		}
 		templates.RenderPartial(w, "dashboard", "audio_upload", pageData)
 		return
 	}
 
-	RenderDashboard(w, r, "audio_upload", nil)
+	devices, _ := services.GetAllDevices()
+	RenderDashboard(w, r, "audio_upload", devices)
 }
 
 // AdminAudioSync syncs audio files from Hikvision device to local database.

@@ -64,7 +64,9 @@ All Hikvision requests must go through: `internal/hikvision/client.go`
 
 ## Payload Format (from official Hikvision Web UI JS)
 
-### DailySchedule
+### DailySchedule — Multi-Audio Support
+
+**`dailyScheduleList` is an array.** Each entry in the array is a separate time slot with its own audio. You can have multiple entries with different `customAudioID` values in a single schedule.
 
 ```json
 {
@@ -78,13 +80,37 @@ All Hikvision requests must go through: `internal/hikvision/client.go`
         "stopTime": "2026-07-13+08:00",
         "dailyScheduleList": [
           {
-            "beginTime": "03:21:00+08:00",
-            "endTime": "04:39:00+08:00",
+            "beginTime": "03:00:00+08:00",
+            "endTime": "03:05:00+08:00",
             "playNowTime": "",
             "playMode": "order",
             "operation": {
               "audioSource": "customAudio",
               "customAudioID": [1],
+              "audioLevel": 5,
+              "audioVolume": 100
+            }
+          },
+          {
+            "beginTime": "06:00:00+08:00",
+            "endTime": "06:05:00+08:00",
+            "playNowTime": "",
+            "playMode": "order",
+            "operation": {
+              "audioSource": "customAudio",
+              "customAudioID": [2],
+              "audioLevel": 5,
+              "audioVolume": 100
+            }
+          },
+          {
+            "beginTime": "09:00:00+08:00",
+            "endTime": "09:05:00+08:00",
+            "playNowTime": "",
+            "playMode": "order",
+            "operation": {
+              "audioSource": "customAudio",
+              "customAudioID": [3],
               "audioLevel": 5,
               "audioVolume": 100
             }
@@ -103,7 +129,9 @@ All Hikvision requests must go through: `internal/hikvision/client.go`
 }
 ```
 
-### WeeklySchedule
+### WeeklySchedule — Multi-Audio & Multi-Broadcast per Day
+
+**`scheduleList` inside each `dayOfWeek` is an array.** Each entry is a separate broadcast time slot with its own audio. You can have multiple entries per day, each with different `customAudioID`.
 
 ```json
 {
@@ -120,8 +148,49 @@ All Hikvision requests must go through: `internal/hikvision/client.go`
             "dayOfWeek": 1,
             "scheduleList": [
               {
-                "beginTime": "03:21:00+08:00",
-                "endTime": "04:39:00+08:00",
+                "beginTime": "03:00:00+08:00",
+                "endTime": "03:05:00+08:00",
+                "playNowTime": "",
+                "playMode": "order",
+                "operation": {
+                  "audioSource": "customAudio",
+                  "customAudioID": [1],
+                  "audioLevel": 5,
+                  "audioVolume": 100
+                }
+              },
+              {
+                "beginTime": "06:00:00+08:00",
+                "endTime": "06:05:00+08:00",
+                "playNowTime": "",
+                "playMode": "order",
+                "operation": {
+                  "audioSource": "customAudio",
+                  "customAudioID": [2],
+                  "audioLevel": 5,
+                  "audioVolume": 100
+                }
+              },
+              {
+                "beginTime": "09:00:00+08:00",
+                "endTime": "09:05:00+08:00",
+                "playNowTime": "",
+                "playMode": "order",
+                "operation": {
+                  "audioSource": "customAudio",
+                  "customAudioID": [3],
+                  "audioLevel": 5,
+                  "audioVolume": 100
+                }
+              }
+            ]
+          },
+          {
+            "dayOfWeek": 2,
+            "scheduleList": [
+              {
+                "beginTime": "03:00:00+08:00",
+                "endTime": "03:05:00+08:00",
                 "playNowTime": "",
                 "playMode": "order",
                 "operation": {
@@ -155,6 +224,9 @@ All Hikvision requests must go through: `internal/hikvision/client.go`
 4. **`weklyScheduleInfo`**: **TYPO** "wekly" (not "weekly") — this is from the official Web UI!
 5. **`planSchemeName`**: Always sent by Web UI (required field)
 6. **`playNowTime`**: Used for immediate playback, format `"HH:MM:SS+08:00"`
+7. **Multi-Audio**: `dailyScheduleList` and `scheduleList` are **arrays** — each element is a separate time slot with its own `operation` (including `customAudioID`). Multiple entries = multiple broadcasts at different times with different audio, all in **one schedule**.
+8. **`planSchemeExecID`**: Optional sequential ID for each scheduleList entry (0, 1, 2, ...), used by Web UI for tracking.
+
 
 ---
 
