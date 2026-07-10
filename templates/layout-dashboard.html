@@ -78,30 +78,32 @@
                 </button>
             </div>
             <nav class="sidebar-nav">
+                <div class="sidebar-section-label">Main Menu</div>
                 <a href="/admin/dashboard" class="sidebar-link {{if eq .Page "dashboard"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-                    Dashboard
+                    <span>Dashboard</span>
                 </a>
                 <a href="/admin/devices" class="sidebar-link {{if eq .Page "devices"}}active{{end}} {{if eq .Page "devices_form"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
-                    Devices
+                    <span>Devices</span>
                 </a>
                 <a href="/admin/audio" class="sidebar-link {{if eq .Page "audio"}}active{{end}} {{if eq .Page "audio_upload"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                    Audio Library
+                    <span>Audio Library</span>
                 </a>
                 <a href="/admin/schedules" class="sidebar-link {{if eq .Page "schedules"}}active{{end}} {{if eq .Page "schedules_form"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    Schedules
+                    <span>Schedules</span>
                 </a>
                 <a href="/admin/broadcast-now" class="sidebar-link {{if eq .Page "broadcast_now"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Broadcast Now
+                    <span>Broadcast Now</span>
                 </a>
                 <a href="/admin/logs" class="sidebar-link {{if eq .Page "logs"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                    Logs
+                    <span>Logs</span>
                 </a>
+                <div class="sidebar-section-label" style="margin-top: 8px;">Configuration</div>
                 <!-- Prayer with collapsible submenu -->
                 <div class="sidebar-nav-group" x-data="{ open: {{if or (eq .Page "prayer_setting") (eq .Page "prayer_time") (eq .Page "prayer_broadcast")}}true{{else}}false{{end}} }">
                     <div class="sidebar-link {{if or (eq .Page "prayer_setting") (eq .Page "prayer_time") (eq .Page "prayer_broadcast")}}active{{end}}" @click="open = !open">
@@ -112,27 +114,27 @@
                     <div class="sidebar-submenu" :class="open ? 'open' : ''">
                         <a href="/admin/prayer/setting" class="sidebar-link {{if eq .Page "prayer_setting"}}active{{end}}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                            Setting
+                            <span>Setting</span>
                         </a>
                         <a href="/admin/prayer/time" class="sidebar-link {{if eq .Page "prayer_time"}}active{{end}}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                            Time
+                            <span>Time</span>
                         </a>
                         <a href="/admin/prayer/broadcast" class="sidebar-link {{if eq .Page "prayer_broadcast"}}active{{end}}">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                            Broadcast
+                            <span>Broadcast</span>
                         </a>
                     </div>
                 </div>
                 <a href="/admin/settings" class="sidebar-link {{if eq .Page "settings"}}active{{end}}">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                    Settings
+                    <span>Settings</span>
                 </a>
             </nav>
             <div class="sidebar-footer">
                 <a href="/logout" class="sidebar-link">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Logout
+                    <span>Logout</span>
                 </a>
             </div>
         </aside>

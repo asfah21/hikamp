@@ -63,6 +63,9 @@ func Init() {
 			},
 			"lower": strings.ToLower,
 			"upper": strings.ToUpper,
+			"mul": func(a, b int) int {
+				return a * b
+			},
 			"div": func(a, b int) int {
 				if b == 0 {
 					return 0

@@ -1,120 +1,262 @@
 {{define "content"}}
 {{$data := .Data}}
-<div class="dashboard-grid">
-    <!-- Stats Cards -->
-    <div class="stat-card">
-        <div class="stat-icon" style="background: var(--accentLight); color: var(--accent);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+<div class="db-page" x-data="dashboardStats()">
+  <!-- Page Header -->
+  <div class="db-header">
+    <div class="db-header-left">
+      <h1 class="db-page-title">Dashboard</h1>
+      <p class="db-page-subtitle">Overview of your broadcast system</p>
+    </div>
+    <div class="db-header-right">
+      <div class="db-period-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Today</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="db-kpi-grid">
+    <div class="db-kpi-card db-kpi-devices">
+      <div class="db-kpi-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+      </div>
+      <div class="db-kpi-body">
+        <div class="db-kpi-top">
+          <span class="db-kpi-label">Total Devices</span>
+          <span class="db-kpi-trend db-kpi-trend-up">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+          </span>
         </div>
-        <div class="stat-info">
-            <span class="stat-value">{{$data.TotalDevices}}</span>
-            <span class="stat-label">Total Devices</span>
+        <span class="db-kpi-value">{{$data.TotalDevices}}</span>
+        <div class="db-kpi-meta">
+          <span class="db-kpi-online">{{$data.OnlineDevices}} online</span>
+          <span class="db-kpi-dot"></span>
+          <span class="db-kpi-offline">{{$data.OfflineDevices}} offline</span>
         </div>
+      </div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon" style="background: #d1fae5; color: var(--success);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    <div class="db-kpi-card db-kpi-audio">
+      <div class="db-kpi-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      </div>
+      <div class="db-kpi-body">
+        <div class="db-kpi-top">
+          <span class="db-kpi-label">Audio Files</span>
         </div>
-        <div class="stat-info">
-            <span class="stat-value">{{$data.OnlineDevices}}</span>
-            <span class="stat-label">Online Devices</span>
+        <span class="db-kpi-value">{{$data.TotalAudioFiles}}</span>
+        <div class="db-kpi-meta">
+          <span class="db-kpi-meta-text">In your library</span>
         </div>
+      </div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon" style="background: #fef2f2; color: var(--error);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+    <div class="db-kpi-card db-kpi-broadcasts">
+      <div class="db-kpi-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      </div>
+      <div class="db-kpi-body">
+        <div class="db-kpi-top">
+          <span class="db-kpi-label">Today's Broadcasts</span>
         </div>
-        <div class="stat-info">
-            <span class="stat-value">{{$data.OfflineDevices}}</span>
-            <span class="stat-label">Offline Devices</span>
+        <span class="db-kpi-value">{{$data.TodayBroadcastCount}}</span>
+        <div class="db-kpi-meta">
+          <span class="db-kpi-meta-text">Broadcasts sent today</span>
         </div>
+      </div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon" style="background: #ede9fe; color: #7c3aed;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+    <div class="db-kpi-card db-kpi-schedule">
+      <div class="db-kpi-icon-wrap">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      </div>
+      <div class="db-kpi-body">
+        <div class="db-kpi-top">
+          <span class="db-kpi-label">Next Schedule</span>
         </div>
-        <div class="stat-info">
-            <span class="stat-value">{{$data.TotalAudioFiles}}</span>
-            <span class="stat-label">Audio Files</span>
+        <span class="db-kpi-value db-kpi-value-sm">{{if $data.NextSchedule}}{{$data.NextSchedule.Name}}{{else}}—{{end}}</span>
+        <div class="db-kpi-meta">
+          <span class="db-kpi-meta-text">{{if $data.NextSchedule}}Scheduled broadcast{{else}}No upcoming schedules{{end}}</span>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-column layout -->
+  <div class="db-columns">
+    <!-- Quick Actions -->
+    <div class="db-card db-card-actions">
+      <div class="db-card-header">
+        <h2 class="db-card-title">Quick Actions</h2>
+        <p class="db-card-desc">Common tasks to manage your system</p>
+      </div>
+      <div class="db-actions-grid">
+        <a href="/admin/broadcast-now" class="db-action-item">
+          <span class="db-action-icon db-action-icon-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </span>
+          <span class="db-action-text">
+            <span class="db-action-label">Broadcast Now</span>
+            <span class="db-action-hint">Send audio immediately</span>
+          </span>
+          <svg class="db-action-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="/admin/prayer" class="db-action-item">
+          <span class="db-action-icon db-action-icon-accent">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </span>
+          <span class="db-action-text">
+            <span class="db-action-label">Sync Prayer Schedule</span>
+            <span class="db-action-hint">Update prayer times</span>
+          </span>
+          <svg class="db-action-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="/admin/audio/upload" class="db-action-item">
+          <span class="db-action-icon db-action-icon-success">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </span>
+          <span class="db-action-text">
+            <span class="db-action-label">Upload Audio</span>
+            <span class="db-action-hint">Add new audio files</span>
+          </span>
+          <svg class="db-action-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+        <a href="/admin/stop-broadcast" class="db-action-item"
+           hx-get="/admin/stop-broadcast" hx-target="#modal-container" hx-swap="innerHTML">
+          <span class="db-action-icon db-action-icon-danger">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+          </span>
+          <span class="db-action-text">
+            <span class="db-action-label">Stop Broadcast</span>
+            <span class="db-action-hint">Emergency stop all</span>
+          </span>
+          <svg class="db-action-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+        </a>
+      </div>
     </div>
 
-    <div class="stat-card">
-        <div class="stat-icon" style="background: #fef3c7; color: var(--warning);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+    <!-- Device Status Summary -->
+    <div class="db-card db-card-status">
+      <div class="db-card-header">
+        <h2 class="db-card-title">Device Status</h2>
+        <p class="db-card-desc">Live connectivity overview</p>
+      </div>
+      <div class="db-status-ring">
+        <div class="db-status-ring-visual">
+          <svg width="120" height="120" viewBox="0 0 120 120">
+            <!-- Background ring -->
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bordLight)" stroke-width="8"/>
+            <!-- Online arc -->
+            {{$totalDevices := $data.TotalDevices}}
+            {{$onlineDevices := $data.OnlineDevices}}
+            {{if gt $totalDevices 0}}
+            {{$onlinePct := div (mul $onlineDevices 100) $totalDevices}}
+            {{$circumference := 326.73}}
+            {{$offset := sub $circumference (div (mul $circumference $onlinePct) 100)}}
+            <circle cx="60" cy="60" r="52" fill="none" stroke="var(--success)" stroke-width="8"
+                    stroke-dasharray="{{$circumference}}" stroke-dashoffset="{{$offset}}"
+                    stroke-linecap="round" transform="rotate(-90 60 60)"
+                    style="transition: stroke-dashoffset 0.8s ease;"/>
+            {{end}}
+          </svg>
+          <div class="db-status-ring-center">
+            <span class="db-status-ring-pct">{{if gt $totalDevices 0}}{{div (mul $onlineDevices 100) $totalDevices}}%{{else}}—{{end}}</span>
+            <span class="db-status-ring-label">Online</span>
+          </div>
         </div>
-        <div class="stat-info">
-            <span class="stat-value">{{$data.TodayBroadcastCount}}</span>
-            <span class="stat-label">Today's Broadcasts</span>
+        <div class="db-status-legend">
+          <div class="db-status-legend-item">
+            <span class="db-status-dot db-status-dot-online"></span>
+            <span class="db-status-legend-label">Online</span>
+            <span class="db-status-legend-value">{{$data.OnlineDevices}}</span>
+          </div>
+          <div class="db-status-legend-item">
+            <span class="db-status-dot db-status-dot-offline"></span>
+            <span class="db-status-legend-label">Offline</span>
+            <span class="db-status-legend-value">{{$data.OfflineDevices}}</span>
+          </div>
+          <div class="db-status-legend-item">
+            <span class="db-status-dot db-status-dot-total"></span>
+            <span class="db-status-legend-label">Total</span>
+            <span class="db-status-legend-value">{{$data.TotalDevices}}</span>
+          </div>
         </div>
+      </div>
     </div>
+  </div>
 
-    <div class="stat-card">
-        <div class="stat-icon" style="background: var(--accentLight); color: var(--accent);">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div class="stat-info">
-            <span class="stat-value">{{if $data.NextSchedule}}{{$data.NextSchedule.Name}}{{else}}0{{end}}</span>
-            <span class="stat-label">Next Schedule</span>
-        </div>
+  <!-- Recent Broadcasts -->
+  <div class="db-card db-card-table">
+    <div class="db-card-header">
+      <div class="db-card-header-left">
+        <h2 class="db-card-title">Recent Broadcasts</h2>
+        <p class="db-card-desc">Latest broadcast activity across all devices</p>
+      </div>
+      <a href="/admin/logs" class="db-card-link">
+        View all
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </a>
     </div>
-</div>
-
-<!-- Quick Actions -->
-<div class="section-heading-left" style="margin-top: 2rem;">
-    <h2>Quick Actions</h2>
-</div>
-<div class="action-grid">
-    <a href="/admin/broadcast-now" class="action-card">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-        <span>Broadcast Now</span>
-    </a>
-    <a href="/admin/prayer" class="action-card">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-        <span>Sync Prayer Schedule</span>
-    </a>
-    <a href="/admin/audio/upload" class="action-card">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <span>Upload Audio</span>
-    </a>
-    <a href="/admin/stop-broadcast" class="action-card" style="border-color: var(--error); color: var(--error);"
-       hx-get="/admin/stop-broadcast" hx-target="#modal-container" hx-swap="innerHTML">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-        <span>Stop Broadcast</span>
-    </a>
-</div>
-
-<!-- Recent Logs -->
-<div class="section-heading-left" style="margin-top: 2rem;">
-    <h2>Recent Broadcasts</h2>
-</div>
-<div class="table-container">
-    <table class="table">
+    <div class="db-table-wrap">
+      <table class="db-table">
         <thead>
-            <tr>
-                <th>Time</th>
-                <th>Device</th>
-                <th>Audio</th>
-                <th>Result</th>
-                <th>Status</th>
-            </tr>
+          <tr>
+            <th>Time</th>
+            <th>Device</th>
+            <th>Audio</th>
+            <th>Result</th>
+            <th>Status</th>
+          </tr>
         </thead>
         <tbody>
-            {{range $data.RecentLogs}}
-            <tr>
-                <td>{{.Time}}</td>
-                <td>{{.DeviceName}}</td>
-                <td>{{.AudioName}}</td>
-                <td><span class="badge {{if eq .Result "success"}}badge-success{{else}}badge-error{{end}}">{{.Result}}</span></td>
-                <td>{{.Status}}</td>
-            </tr>
-            {{else}}
-            <tr><td colspan="5" style="text-align: center; color: var(--inkMuted);">No broadcasts yet</td></tr>
-            {{end}}
+          {{range $data.RecentLogs}}
+          <tr>
+            <td><span class="db-cell-time">{{.Time}}</span></td>
+            <td><span class="db-cell-device">{{.DeviceName}}</span></td>
+            <td><span class="db-cell-audio">{{.AudioName}}</span></td>
+            <td>
+              <span class="db-badge {{if eq .Result "success"}}db-badge-success{{else}}db-badge-error{{end}}">
+                <span class="db-badge-dot"></span>
+                {{.Result}}
+              </span>
+            </td>
+            <td><span class="db-cell-status">{{.Status}}</span></td>
+          </tr>
+          {{else}}
+          <tr>
+            <td colspan="5">
+              <div class="db-empty">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>No broadcasts yet</span>
+              </div>
+            </td>
+          </tr>
+          {{end}}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
 </div>
+
+<script>
+  function dashboardStats() {
+    return {
+      init() {
+        // Animate KPI cards on mount
+        this.$nextTick(() => {
+          document.querySelectorAll('.db-kpi-card').forEach((el, i) => {
+            el.style.opacity = '0';
+            el.style.transform = 'translateY(12px)';
+            setTimeout(() => {
+              el.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
+              el.style.opacity = '1';
+              el.style.transform = 'translateY(0)';
+            }, i * 80);
+          });
+        });
+      }
+    }
+  }
+</script>
 {{end}}
