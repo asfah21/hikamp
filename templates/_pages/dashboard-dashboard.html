@@ -145,23 +145,23 @@
       <div class="db-status-ring"
            x-data="deviceDonut({{$data.OnlineDevices}}, {{$data.OfflineDevices}}, {{$data.TotalDevices}})">
         <div class="db-status-ring-visual">
-          <svg width="200" height="200" viewBox="0 0 200 200">
+          <svg width="260" height="260" viewBox="0 0 260 260">
             <!-- Background ring -->
-            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--bordLight)" stroke-width="14"/>
-            <!-- Offline arc (remaining portion) -->
-            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--bord)" stroke-width="14"
-                    stroke-dasharray="515.22" stroke-dashoffset="0"
-                    stroke-linecap="butt" transform="rotate(-90 100 100)"
+            <circle cx="130" cy="130" r="105" fill="none" stroke="var(--bordLight)" stroke-width="18"/>
+            <!-- Offline arc -->
+            <circle cx="130" cy="130" r="105" fill="none" stroke="var(--bord)" stroke-width="18"
+                    stroke-dasharray="659.73" stroke-dashoffset="0"
+                    stroke-linecap="butt" transform="rotate(-90 130 130)"
                     x-show="offlinePct > 0 && offlinePct < 100"
                     :stroke-dashoffset="offlineOffset"/>
             <!-- Online arc -->
-            <circle cx="100" cy="100" r="82" fill="none" stroke="var(--success)" stroke-width="14"
-                    stroke-dasharray="515.22" stroke-dashoffset="0"
-                    stroke-linecap="butt" transform="rotate(-90 100 100)"
+            <circle cx="130" cy="130" r="105" fill="none" stroke="var(--success)" stroke-width="18"
+                    stroke-dasharray="659.73" stroke-dashoffset="0"
+                    stroke-linecap="butt" transform="rotate(-90 130 130)"
                     :stroke-dashoffset="onlineOffset"
                     style="transition: stroke-dashoffset 0.8s ease;"/>
             <!-- Center circle (mask) -->
-            <circle cx="100" cy="100" r="62" fill="var(--surface)" stroke="none"/>
+            <circle cx="130" cy="130" r="78" fill="var(--surface)" stroke="none"/>
           </svg>
           <div class="db-status-ring-center">
             <span class="db-status-ring-total" x-text="total"></span>
@@ -273,11 +273,10 @@
   }
 
   function deviceDonut(online, offline, total) {
-    const circumference = 2 * Math.PI * 82; // r=82
+    const r = 105;
+    const circumference = 2 * Math.PI * r; // ≈ 659.73
     const onlinePct = total > 0 ? Math.round((online / total) * 100) : 0;
     const offlinePct = total > 0 ? Math.round((offline / total) * 100) : 0;
-    const onlineOffset = total > 0 ? circumference - (onlinePct / 100) * circumference : circumference;
-    const offlineOffset = total > 0 ? circumference - (offlinePct / 100) * circumference : circumference;
     return {
       online,
       offline,
@@ -285,11 +284,15 @@
       onlinePct,
       offlinePct,
       get onlineOffset() {
-        // When 100%, dashoffset = 0 (full circle). When 0%, dashoffset = circumference (hidden).
-        return total > 0 ? circumference - (onlinePct / 100) * circumference : circumference;
+        // When 100%: offset = 0 (full circle visible)
+        // When 0%:   offset = circumference (hidden)
+        // Otherwise: offset = circumference * (1 - pct/100)
+        if (total === 0 || onlinePct === 0) return circumference;
+        return circumference - (onlinePct / 100) * circumference;
       },
       get offlineOffset() {
-        return total > 0 ? circumference - (offlinePct / 100) * circumference : circumference;
+        if (total === 0 || offlinePct === 0) return circumference;
+        return circumference - (offlinePct / 100) * circumference;
       }
     };
   }
