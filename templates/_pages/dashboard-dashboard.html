@@ -3,11 +3,11 @@
 <div class="db-page" x-data="dashboardStats()">
   <!-- Page Header -->
   <div class="db-header">
-    <div class="db-header-left">
+    <!-- <div class="db-header-left">
       <h1 class="db-page-title">Dashboard</h1>
       <p class="db-page-subtitle">Overview of your broadcast system</p>
-    </div>
-    <div class="db-header-right">
+    </div> -->
+    <div class="db-header-left">
       <div class="db-period-badge">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Today</span>
@@ -29,11 +29,11 @@
           </span>
         </div>
         <span class="db-kpi-value">{{$data.TotalDevices}}</span>
-        <div class="db-kpi-meta">
+        <!-- <div class="db-kpi-meta">
           <span class="db-kpi-online">{{$data.OnlineDevices}} online</span>
           <span class="db-kpi-dot"></span>
           <span class="db-kpi-offline">{{$data.OfflineDevices}} offline</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
@@ -46,9 +46,9 @@
           <span class="db-kpi-label">Audio Files</span>
         </div>
         <span class="db-kpi-value">{{$data.TotalAudioFiles}}</span>
-        <div class="db-kpi-meta">
+        <!-- <div class="db-kpi-meta">
           <span class="db-kpi-meta-text">In your library</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
@@ -61,9 +61,9 @@
           <span class="db-kpi-label">Today's Broadcasts</span>
         </div>
         <span class="db-kpi-value">{{$data.TodayBroadcastCount}}</span>
-        <div class="db-kpi-meta">
+        <!-- <div class="db-kpi-meta">
           <span class="db-kpi-meta-text">Broadcasts sent today</span>
-        </div>
+        </div> -->
       </div>
     </div>
 
@@ -76,9 +76,9 @@
           <span class="db-kpi-label">Next Schedule</span>
         </div>
         <span class="db-kpi-value db-kpi-value-sm">{{if $data.NextSchedule}}{{$data.NextSchedule.Name}}{{else}}—{{end}}</span>
-        <div class="db-kpi-meta">
+        <!-- <div class="db-kpi-meta">
           <span class="db-kpi-meta-text">{{if $data.NextSchedule}}Scheduled broadcast{{else}}No upcoming schedules{{end}}</span>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
@@ -204,7 +204,7 @@
     <div class="db-card-header">
       <div class="db-card-header-left">
         <h2 class="db-card-title">Recent Broadcasts</h2>
-        <p class="db-card-desc">Latest broadcast activity across all devices</p>
+        <!-- <p class="db-card-desc">Latest broadcast activity across all devices</p> -->
       </div>
       <a href="/admin/logs" class="db-card-link">
         View all

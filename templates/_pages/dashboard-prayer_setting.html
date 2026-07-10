@@ -2,8 +2,8 @@
 {{$location := .Data.Location}}
 <div class="dashboard-panel" style="max-width: 700px;">
     <div class="dashboard-panel-header">
-        <h3>Prayer Location Settings</h3>
-        <p>Set your location manually or click on the map to auto-fill coordinates.</p>
+        <h3>Prayer Settings</h3>
+        <!-- <p>Set your location manually or click on the map to auto-fill coordinates.</p> -->
     </div>
     <div class="dashboard-panel-body">
         <form hx-post="/admin/prayer/save" hx-target="#main-content" hx-swap="innerHTML" hx-on::after-request="setTimeout(initPrayerMap, 100)">
