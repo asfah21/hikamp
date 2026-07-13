@@ -1,0 +1,43 @@
+{{define "content"}}
+{{if .Error}}
+<div class="login-alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    {{.Error}}
+</div>
+{{end}}
+
+<form hx-post="/login" hx-target="this" hx-swap="outerHTML" class="login-form">
+    <div class="login-field">
+        <label for="username" class="login-label">Username</label>
+        <div class="login-input-wrapper">
+            <span class="login-input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                    <circle cx="12" cy="7" r="4"/>
+                </svg>
+            </span>
+            <input type="text" id="username" name="username" class="login-input" placeholder="Enter your username" required autofocus>
+        </div>
+    </div>
+    <div class="login-field">
+        <label for="password" class="login-label">Password</label>
+        <div class="login-input-wrapper">
+            <span class="login-input-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2"/>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+            </span>
+            <input type="password" id="password" name="password" class="login-input" placeholder="Enter your password" required>
+        </div>
+    </div>
+    <button type="submit" class="login-btn">
+        Sign In
+        <svg class="login-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+    </button>
+</form>
+{{end}}
