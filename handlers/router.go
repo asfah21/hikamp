@@ -88,9 +88,15 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		// Authenticate user
 		user, err := authenticateUser(username, password)
 		if err != nil {
-			templates.Render(w, "auth", "login", map[string]interface{}{
-				"Error": "Invalid username or password",
-			})
+			if isHTMXRequest(r) {
+				templates.RenderPartial(w, "auth", "login", map[string]interface{}{
+					"Error": "Invalid username or password",
+				})
+			} else {
+				templates.Render(w, "auth", "login", map[string]interface{}{
+					"Error": "Invalid username or password",
+				})
+			}
 			return
 		}
 
@@ -98,9 +104,15 @@ func handleLogin(w http.ResponseWriter, r *http.Request) {
 		sessionToken, err := createSession(user.ID)
 		if err != nil {
 			log.Printf("Failed to create session: %v", err)
-			templates.Render(w, "auth", "login", map[string]interface{}{
-				"Error": "Failed to create session",
-			})
+			if isHTMXRequest(r) {
+				templates.RenderPartial(w, "auth", "login", map[string]interface{}{
+					"Error": "Failed to create session",
+				})
+			} else {
+				templates.Render(w, "auth", "login", map[string]interface{}{
+					"Error": "Failed to create session",
+				})
+			}
 			return
 		}
 
