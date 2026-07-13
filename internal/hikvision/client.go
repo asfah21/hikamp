@@ -595,7 +595,7 @@ func getLocationFromOffset(offset string) *time.Location {
 }
 
 // BroadcastNow broadcasts audio immediately using ModifyPlanScheme with an immediate schedule.
-// Creates a temporary schedule that starts in ~62 minutes and ends after the specified duration.
+// Creates a temporary schedule that starts in 60 minutes + 2 seconds and ends after the specified duration.
 // Uses ModifyPlanScheme (non-destructive) — adds the broadcast without touching existing schedules.
 // startTime/stopTime are set to today only (1-day schedule).
 func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) error {
@@ -615,10 +615,10 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
 	now := time.Now()
 
-	// Add 62 minutes to beginTime to compensate for timezone offset differences
+	// Add 60 minutes + 2 seconds to beginTime to compensate for timezone offset differences
 	// between the server and the Hikvision device.
-	beginTime := now.Add(62*time.Minute).Format("15:04:05") + "+" + timezoneOffset
-	endTime := now.Add(62*time.Minute+time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
+	beginTime := now.Add(60*time.Minute+2*time.Second).Format("15:04:05") + "+" + timezoneOffset
+	endTime := now.Add(60*time.Minute+2*time.Second+time.Duration(durationMinutes)*time.Minute).Format("15:04:05") + "+" + timezoneOffset
 
 	// Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
 	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00"), NOT the current time
