@@ -1359,9 +1359,11 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Calculate begin_time and end_time for the schedule
+		// Add 60 minutes + 2 seconds to compensate for timezone offset differences
+		// between the server and the Hikvision device (same as BroadcastNowWithTimezone).
 		now := time.Now()
-		beginTime := now.Format("15:04:05")
-		endTime := now.Add(time.Duration(totalMinutes) * time.Minute).Format("15:04:05")
+		beginTime := now.Add(60*time.Minute + 2*time.Second).Format("15:04:05")
+		endTime := now.Add(60*time.Minute + 2*time.Second + time.Duration(totalMinutes)*time.Minute).Format("15:04:05")
 
 		// Create a schedule in the database (same pattern as prayer broadcast)
 		schedule := &models.BroadcastSchedule{
