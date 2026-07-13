@@ -1328,7 +1328,9 @@ func renderStopBroadcastModal(w http.ResponseWriter, devices []models.Device) {
 	fmt.Fprint(w, html)
 }
 
-// AdminBroadcastNow handles manual broadcast
+// AdminBroadcastNow handles manual broadcast.
+// Creates a schedule in the database (like prayer broadcast) then syncs all
+// schedules to all devices — same as clicking "Sync All to Device".
 func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
@@ -1356,13 +1358,38 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Send broadcast to the Hikvision device
-		err = services.BroadcastToDevice(device, audioID, volume, totalMinutes)
+		// Calculate begin_time and end_time for the schedule
+		now := time.Now()
+		beginTime := now.Format("15:04:05")
+		endTime := now.Add(time.Duration(totalMinutes) * time.Minute).Format("15:04:05")
+
+		// Create a schedule in the database (same pattern as prayer broadcast)
+		schedule := &models.BroadcastSchedule{
+			Name:         "Broadcast Now: " + audio.Name,
+			AudioID:      audioID,
+			DeviceID:     deviceID,
+			ScheduleType: "daily",
+			BeginTime:    beginTime,
+			EndTime:      endTime,
+			Volume:       volume,
+			Enabled:      true,
+		}
+
+		_, err = services.CreateSchedule(schedule)
 		if err != nil {
-			now := time.Now().Format("2006-01-02 15:04:05")
+			setHXTriggerToast(w, "Failed to create schedule: "+err.Error())
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Sync all schedules to all devices (same as clicking "Sync All to Device")
+		success, fail, syncErr := services.SyncAllSchedulesToDevice()
+
+		nowStr := time.Now().Format("2006-01-02 15:04:05")
+		if syncErr != nil || fail > 0 {
 			// Log the failed broadcast
 			log := &models.BroadcastLog{
-				Time:       now,
+				Time:       nowStr,
 				DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 				DeviceName: device.Name,
 				AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
@@ -1373,15 +1400,18 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 			}
 			services.CreateLog(log)
 
-			setHXTriggerToast(w, "Broadcast failed: "+err.Error())
+			msg := "Broadcast schedule created but sync had issues"
+			if syncErr != nil {
+				msg += ": " + syncErr.Error()
+			}
+			setHXTriggerToast(w, msg, true)
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		now := time.Now().Format("2006-01-02 15:04:05")
 		// Log the successful broadcast
 		log := &models.BroadcastLog{
-			Time:       now,
+			Time:       nowStr,
 			DeviceID:   sql.NullInt64{Int64: int64(deviceID), Valid: deviceID > 0},
 			DeviceName: device.Name,
 			AudioID:    sql.NullInt64{Int64: int64(audioID), Valid: audioID > 0},
@@ -1392,7 +1422,7 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		}
 		services.CreateLog(log)
 
-		setHXTriggerToast(w, "Broadcast started successfully", true)
+		setHXTriggerToast(w, fmt.Sprintf("Broadcast started: %d schedule(s) synced to device(s)", success), true)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
