@@ -302,8 +302,9 @@ BroadcastNow uses a dual-strategy approach:
    - `SearchPlanScheme` → merge existing schedules + broadcast_now → `AddPlanScheme`
    - This preserves existing schedules while adding the broadcast_now entry
 
-- `beginTime` = now + 2 seconds (to account for network/processing delay)
+- `beginTime` = now + 62 minutes (to compensate for timezone offset differences between server and device)
 - `planSchemeID` = `broadcast_now_<unix_timestamp>`
+- Implemented in: `BroadcastNowWithTimezone()` → `broadcastNowWithAddPlanScheme()` (fallback)
 
 ---
 

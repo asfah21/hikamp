@@ -605,10 +605,11 @@ func (c *Client) BroadcastNow(audioID int, volume int, durationMinutes int) erro
 // BroadcastNowWithTimezone broadcasts audio immediately with a configurable timezone offset.
 // The timezoneOffset should be in format like "07:00" or "-05:00" (WITHOUT "+" prefix).
 //
-// IMPORTANT: Uses ModifyPlanScheme which is NON-DESTRUCTIVE — it only adds or updates
-// the specific plan scheme without touching existing schedules on the device.
-// startTime/stopTime are set to today only (1-day schedule), so the broadcast
-// automatically expires after today.
+// Uses a dual-strategy approach:
+//  1. Strategy 1: Try ModifyPlanScheme first (non-destructive, preserves other schedules)
+//  2. Strategy 2: If ModifyPlanScheme fails (403 on some firmware), fallback to:
+//     SearchPlanScheme → merge existing schedules + broadcast_now → AddPlanScheme
+//     This preserves existing schedules while adding the broadcast_now entry.
 //
 // Uses map[string]interface{} payload matching the official Hikvision Web UI format.
 func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinutes int, timezoneOffset string) error {
@@ -624,8 +625,10 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 	// Both start and stop are set to today only — 1-day schedule.
 	today := now.Format("2006-01-02") + "+" + timezoneOffset
 
+	planSchemeID := fmt.Sprintf("broadcast_now_%d", now.Unix())
+
 	broadcastNowScheme := map[string]interface{}{
-		"planSchemeID":   fmt.Sprintf("broadcast_now_%d", now.Unix()),
+		"planSchemeID":   planSchemeID,
 		"planSchemeName": "Broadcast Now",
 		"enabled":        true,
 		"audioOutID":     []int{1},
@@ -648,8 +651,7 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	// Use ModifyPlanScheme — non-destructive, only adds/updates this specific scheme
-	// without touching existing schedules on the device.
+	// Strategy 1: Try ModifyPlanScheme first (non-destructive)
 	payload := map[string]interface{}{
 		"broadcastPlanSchemeList": []map[string]interface{}{
 			broadcastNowScheme,
@@ -662,7 +664,65 @@ func (c *Client) BroadcastNowWithTimezone(audioID int, volume int, durationMinut
 		},
 	}
 
-	return c.ModifyPlanScheme(payload)
+	err := c.ModifyPlanScheme(payload)
+	if err == nil {
+		return nil
+	}
+
+	// If ModifyPlanScheme fails (403 on some firmware), log and fall back to Strategy 2
+	log.Printf("[HIKVISION] ModifyPlanScheme failed for broadcast_now: %v — falling back to SearchPlanScheme + AddPlanScheme", err)
+
+	// Strategy 2: SearchPlanScheme → merge existing + broadcast_now → AddPlanScheme
+	// This preserves existing schedules while adding the broadcast_now entry.
+	return c.broadcastNowWithAddPlanScheme(broadcastNowScheme, planSchemeID)
+}
+
+// broadcastNowWithAddPlanScheme is the fallback strategy for BroadcastNow.
+// It searches existing schedules on the device, merges them with the broadcast_now
+// schedule, and sends everything via AddPlanScheme (which replaces all schedules).
+// This preserves existing schedules while adding the broadcast_now entry.
+func (c *Client) broadcastNowWithAddPlanScheme(broadcastNowScheme map[string]interface{}, planSchemeID string) error {
+	// Step 1: Search all existing schedules on the device
+	existingSchemes := []map[string]interface{}{}
+	schemes, searchErr := c.SearchPlanScheme()
+	if searchErr == nil {
+		if schemesMap, ok := schemes.(map[string]interface{}); ok {
+			if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
+				for _, item := range list {
+					if scheme, ok := item.(map[string]interface{}); ok {
+						existingSchemes = append(existingSchemes, scheme)
+					}
+				}
+			}
+		}
+	} else {
+		log.Printf("[HIKVISION] SearchPlanScheme failed in fallback: %v — proceeding with broadcast_now only", searchErr)
+	}
+
+	// Step 2: Remove any existing broadcast_now scheme with the same ID (to avoid duplicates)
+	filteredSchemes := []map[string]interface{}{}
+	for _, scheme := range existingSchemes {
+		if id, ok := scheme["planSchemeID"].(string); ok && id == planSchemeID {
+			continue // skip old broadcast_now with same ID
+		}
+		filteredSchemes = append(filteredSchemes, scheme)
+	}
+
+	// Step 3: Add the broadcast_now scheme to the list
+	allSchemes := append(filteredSchemes, broadcastNowScheme)
+
+	// Step 4: Send everything via AddPlanScheme
+	addPayload := map[string]interface{}{
+		"broadcastPlanSchemeList": allSchemes,
+		"terminalInfoList": []map[string]interface{}{
+			{
+				"terminalID": 1,
+				"audioOutID": []int{1},
+			},
+		},
+	}
+
+	return c.CreateSchedule(addPayload)
 }
 
 // StopBroadcast stops all active broadcasts on the device.
