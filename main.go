@@ -2,7 +2,7 @@ package main
 
 import (
 	"ego/database"
-	"ego/handlers"
+	"ego/routes"
 	"ego/templates"
 	"log"
 	"net/http"
@@ -17,7 +17,7 @@ func main() {
 	templates.Init()
 
 	// Setup routes
-	router := handlers.Router()
+	router := routes.Register()
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")

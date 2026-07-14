@@ -5,7 +5,33 @@ import (
 	"ego/services"
 	"ego/templates"
 	"net/http"
+	"strings"
 )
+
+// jsonEscape escapes a string for safe embedding in a JSON string value.
+// This prevents "Bad control character" errors when error messages contain
+// quotes, newlines, or other special characters.
+func jsonEscape(s string) string {
+	s = strings.ReplaceAll(s, "\\", "\\\\")
+	s = strings.ReplaceAll(s, "\"", "\\\"")
+	s = strings.ReplaceAll(s, "\n", "\\n")
+	s = strings.ReplaceAll(s, "\r", "\\r")
+	s = strings.ReplaceAll(s, "\t", "\\t")
+	return s
+}
+
+// setHXTriggerToast sets the HX-Trigger header with a JSON toast message.
+// The message is automatically JSON-escaped to prevent invalid JSON errors.
+// If reload is true, adds "reload":"true" to trigger a page reload.
+func setHXTriggerToast(w http.ResponseWriter, message string, reload ...bool) {
+	escaped := jsonEscape(message)
+	doReload := len(reload) > 0 && reload[0]
+	if doReload {
+		w.Header().Set("HX-Trigger", `{"toast":"`+escaped+`","reload":"true"}`)
+	} else {
+		w.Header().Set("HX-Trigger", `{"toast":"`+escaped+`"}`)
+	}
+}
 
 // RenderDashboard renders a dashboard page with sidebar layout
 func RenderDashboard(w http.ResponseWriter, r *http.Request, page string, data interface{}) {
@@ -71,4 +97,25 @@ func getPageTitle(page string) string {
 		return title
 	}
 	return "Dashboard"
+}
+
+// AdminDashboard renders the dashboard page
+func AdminDashboard(w http.ResponseWriter, r *http.Request) {
+	data, err := services.GetDashboardData()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	RenderDashboard(w, r, "dashboard", data)
+}
+
+// AdminLogs renders the broadcast log page
+func AdminLogs(w http.ResponseWriter, r *http.Request) {
+	logs, err := services.GetAllLogs()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	RenderDashboard(w, r, "logs", logs)
 }

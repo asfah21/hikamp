@@ -206,13 +206,13 @@ func Render(w http.ResponseWriter, layout, page string, data interface{}) {
 // findTemplateKey finds the template key for a given layout and page
 func findTemplateKey(layout, page string) string {
 	// Try exact match first
-	key := filepath.Join("templates", "_pages", layout+"-"+page+".html")
+	key := filepath.Join("templates", "pages", layout+"-"+page+".html")
 	if _, ok := store.templates[key]; ok {
 		return key
 	}
 
 	// Try layout-specific pages
-	key = filepath.Join("templates", "_pages", layout, page+".html")
+	key = filepath.Join("templates", "pages", layout, page+".html")
 	if _, ok := store.templates[key]; ok {
 		return key
 	}
@@ -224,7 +224,7 @@ func findTemplateKey(layout, page string) string {
 	}
 
 	// Try direct page name
-	key = filepath.Join("templates", "_pages", page+".html")
+	key = filepath.Join("templates", "pages", page+".html")
 	if _, ok := store.templates[key]; ok {
 		return key
 	}
