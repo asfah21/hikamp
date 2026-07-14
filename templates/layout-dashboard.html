@@ -248,10 +248,33 @@
             }
         });
 
+        // Destroy Alpine state before HTMX removes old content (prevents duplicate state)
+        document.addEventListener('htmx:beforeSwap', function(evt) {
+            if (typeof Alpine !== 'undefined') {
+                // Always destroy all Alpine scopes in #modal-container to prevent stale state
+                var modalContainer = document.getElementById('modal-container');
+                if (modalContainer) {
+                    try { Alpine.destroyTree(modalContainer); } catch(e) {}
+                }
+                // Also destroy in the specific target if it's not modal-container
+                var target = evt.detail.target;
+                if (target && target.id !== 'modal-container') {
+                    try { Alpine.destroyTree(target); } catch(e) {}
+                }
+            }
+        });
+
         // Reinitialize Alpine.js after HTMX content swap
         document.addEventListener('htmx:afterSwap', function(evt) {
             if (typeof Alpine !== 'undefined') {
-                Alpine.initTree(evt.detail.elt);
+                var target = evt.detail.target;
+                if (target) {
+                    try {
+                        Alpine.initTree(target);
+                    } catch(e) {
+                        // Ignore init errors on non-Alpine content
+                    }
+                }
             }
         });
 

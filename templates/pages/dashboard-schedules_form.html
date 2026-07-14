@@ -1,9 +1,18 @@
 {{define "content"}}
-<div class="modal-overlay" x-data="scheduleForm()">
+<div class="modal-overlay" x-data="scheduleForm()"
+     data-schedule-type="{{if .Data.Schedule}}{{.Data.Schedule.ScheduleType}}{{else}}daily{{end}}"
+     {{if .Data.Schedule}}
+     data-schedule-entries='[
+         {{- range $i, $e := .Data.Schedule.Entries}}
+         {{- if $i}},{{end}}
+         {"audioId":"{{$e.AudioID}}","beginHour":"{{parseTime $e.BeginTime "h"}}","beginMinute":"{{parseTime $e.BeginTime "m"}}","beginSecond":"{{parseTime $e.BeginTime "s"}}","endHour":"{{parseTime $e.EndTime "h"}}","endMinute":"{{parseTime $e.EndTime "m"}}","endSecond":"{{parseTime $e.EndTime "s"}}","volume":"{{$e.Volume}}"}
+         {{- end}}
+     ]'
+     {{end}}>
     <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
             <h3>{{if .Data.Schedule}}Edit Schedule{{else}}Add Schedule{{end}}</h3>
-            <button class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            <button class="btn btn-ghost" onclick="var el = this.closest('.modal-overlay'); if(window.Alpine) { try { Alpine.destroyTree(el); } catch(e) {} } el.remove()">&times;</button>
         </div>
         <form hx-post="{{if .Data.Schedule}}/admin/schedules/edit/{{.Data.Schedule.ID}}{{else}}/admin/schedules/create{{end}}" hx-target="#main-content" hx-swap="innerHTML" @submit.prevent="setTimeValues(); $el.submit()">
             <div class="modal-body">
@@ -159,7 +168,7 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-ghost" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="button" class="btn btn-ghost" onclick="var el = this.closest('.modal-overlay'); if(window.Alpine) { try { Alpine.destroyTree(el); } catch(e) {} } el.remove()">Cancel</button>
                 <button type="submit" class="btn btn-primary">{{if .Data.Schedule}}Update{{else}}Create{{end}}</button>
             </div>
         </form>
@@ -168,48 +177,41 @@
 
 <script>
 function scheduleForm() {
-    // Helper: get selected audio duration by index
-    function getAudioDuration(entryIdx) {
-        var selects = document.querySelectorAll('select[name="audio_id"]');
-        if (entryIdx >= selects.length) return 0;
-        var sel = selects[entryIdx];
-        if (!sel || !sel.value) return 0;
-        var opt = sel.options[sel.selectedIndex];
-        return parseInt(opt.getAttribute('data-duration')) || 0;
-    }
-
-    // Parse existing entries if editing
-    var initialEntries = [];
-    {{if .Data.Schedule}}
-        {{range $e := .Data.Schedule.Entries}}
-        initialEntries.push({
-            audioId: '{{$e.AudioID}}',
-            beginHour: '{{parseTime $e.BeginTime "h"}}',
-            beginMinute: '{{parseTime $e.BeginTime "m"}}',
-            beginSecond: '{{parseTime $e.BeginTime "s"}}',
-            endHour: '{{parseTime $e.EndTime "h"}}',
-            endMinute: '{{parseTime $e.EndTime "m"}}',
-            endSecond: '{{parseTime $e.EndTime "s"}}',
-            volume: '{{$e.Volume}}'
-        });
-        {{end}}
-    {{end}}
-    if (initialEntries.length === 0) {
-        initialEntries.push({
-            audioId: '',
-            beginHour: '12',
-            beginMinute: '00',
-            beginSecond: '00',
-            endHour: '12',
-            endMinute: '05',
-            endSecond: '00',
-            volume: '50'
-        });
-    }
-
     return {
-        type: '{{if .Data.Schedule}}{{.Data.Schedule.ScheduleType}}{{else}}daily{{end}}',
-        entries: initialEntries,
+        type: 'daily',
+        entries: [],
+
+        init() {
+            // $el is the element with x-data="scheduleForm()" — guaranteed correct reference
+            var el = this.$el;
+            this.type = el.getAttribute('data-schedule-type') || 'daily';
+
+            var entriesAttr = el.getAttribute('data-schedule-entries');
+            if (entriesAttr) {
+                try {
+                    var parsed = JSON.parse(entriesAttr);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        this.entries = parsed;
+                        return;
+                    }
+                } catch(e) {
+                    // JSON parse failed, fall through to default
+                }
+            }
+
+            // Default single entry
+            this.entries = [{
+                audioId: '',
+                beginHour: '12',
+                beginMinute: '00',
+                beginSecond: '00',
+                endHour: '12',
+                endMinute: '05',
+                endSecond: '00',
+                volume: '50'
+            }];
+        },
+
         pad: function(n) { return String(n).padStart(2, '0'); },
 
         addEntry: function() {
@@ -241,6 +243,15 @@ function scheduleForm() {
             return e.endHour + ':' + e.endMinute + ':' + e.endSecond;
         },
 
+        getAudioDuration: function(idx) {
+            var selects = document.querySelectorAll('select[name="audio_id"]');
+            if (idx >= selects.length) return 0;
+            var sel = selects[idx];
+            if (!sel || !sel.value) return 0;
+            var opt = sel.options[sel.selectedIndex];
+            return parseInt(opt.getAttribute('data-duration')) || 0;
+        },
+
         onAudioChange: function(idx) {
             this.autoFillFromAudio(idx);
         },
@@ -254,7 +265,7 @@ function scheduleForm() {
         },
 
         autoFillFromAudio: function(idx) {
-            var dur = getAudioDuration(idx);
+            var dur = this.getAudioDuration(idx);
             if (dur <= 0) return;
             var now = new Date();
             var e = this.entries[idx];
@@ -278,15 +289,13 @@ function scheduleForm() {
         },
 
         setEndToBeginPlusDuration: function(idx) {
-            var dur = getAudioDuration(idx);
+            var dur = this.getAudioDuration(idx);
             if (dur <= 0) dur = 300;
             this.calcEndFromBegin(idx, dur);
         },
 
-        // Called before form submit — Alpine automatically syncs x-model -> form values
         setTimeValues: function() {
             // Alpine's x-model already keeps form values in sync
-            // This is called as @submit.prevent handler
         }
     };
 }
