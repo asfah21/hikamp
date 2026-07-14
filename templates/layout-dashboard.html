@@ -248,35 +248,22 @@
             }
         });
 
-        // Destroy Alpine state before HTMX removes old content (prevents duplicate state)
+        // Destroy Alpine state before HTMX swaps new content.
         document.addEventListener('htmx:beforeSwap', function(evt) {
             if (typeof Alpine !== 'undefined') {
-                // Always destroy all Alpine scopes in #modal-container to prevent stale state
-                var modalContainer = document.getElementById('modal-container');
-                if (modalContainer) {
-                    try { Alpine.destroyTree(modalContainer); } catch(e) {}
-                }
-                // Also destroy in the specific target if it's not modal-container
                 var target = evt.detail.target;
-                if (target && target.id !== 'modal-container') {
+                if (target) {
                     try { Alpine.destroyTree(target); } catch(e) {}
                 }
             }
         });
 
-        // Reinitialize Alpine.js after HTMX content swap
-        document.addEventListener('htmx:afterSwap', function(evt) {
-            if (typeof Alpine !== 'undefined') {
-                var target = evt.detail.target;
-                if (target) {
-                    try {
-                        Alpine.initTree(target);
-                    } catch(e) {
-                        // Ignore init errors on non-Alpine content
-                    }
-                }
-            }
-        });
+        // Alpine 3.x has a built-in MutationObserver that automatically detects
+        // new x-data elements in the DOM. HTMX swaps trigger that observer,
+        // so we do NOT need to call Alpine.initTree() here.
+        // Calling initTree in addition to the MutationObserver causes double init
+        // of components inside #modal-container, leading to duplicate entries.
+        // We only need destroyTree in beforeSwap to clean stale state.
 
         function showToast(message, type) {
             var container = document.getElementById('toast-container');

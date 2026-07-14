@@ -1,14 +1,14 @@
 {{define "content"}}
-<div class="modal-overlay" x-data="scheduleForm()"
-     data-schedule-type="{{if .Data.Schedule}}{{.Data.Schedule.ScheduleType}}{{else}}daily{{end}}"
-     {{if .Data.Schedule}}
-     data-schedule-entries='[
-         {{- range $i, $e := .Data.Schedule.Entries}}
-         {{- if $i}},{{end}}
-         {"audioId":"{{$e.AudioID}}","beginHour":"{{parseTime $e.BeginTime "h"}}","beginMinute":"{{parseTime $e.BeginTime "m"}}","beginSecond":"{{parseTime $e.BeginTime "s"}}","endHour":"{{parseTime $e.EndTime "h"}}","endMinute":"{{parseTime $e.EndTime "m"}}","endSecond":"{{parseTime $e.EndTime "s"}}","volume":"{{$e.Volume}}"}
-         {{- end}}
-     ]'
-     {{end}}>
+<div class="modal-overlay" x-data="scheduleForm(
+    {{if .Data.Schedule}}
+        {{if .Data.Schedule.Entries}}[
+            {{- range $i, $e := .Data.Schedule.Entries}}{{- if $i}},{{end}}
+            {audioId:'{{$e.AudioID}}',beginHour:'{{parseTime $e.BeginTime "h"}}',beginMinute:'{{parseTime $e.BeginTime "m"}}',beginSecond:'{{parseTime $e.BeginTime "s"}}',endHour:'{{parseTime $e.EndTime "h"}}',endMinute:'{{parseTime $e.EndTime "m"}}',endSecond:'{{parseTime $e.EndTime "s"}}',volume:'{{$e.Volume}}'}
+            {{- end}}
+        ]{{else}}[]{{end}}
+    {{else}}[]{{end}},
+    {{if .Data.Schedule}}'{{.Data.Schedule.ScheduleType}}'{{else}}'daily'{{end}}
+)">
     <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
             <h3>{{if .Data.Schedule}}Edit Schedule{{else}}Add Schedule{{end}}</h3>
@@ -176,41 +176,25 @@
 </div>
 
 <script>
-function scheduleForm() {
+function scheduleForm(entries, type) {
+    // entries is the Go-rendered JSON array (may be empty)
+    // type is the schedule type string
+    if (!entries || !Array.isArray(entries) || entries.length === 0) {
+        entries = [{
+            audioId: '',
+            beginHour: '12',
+            beginMinute: '00',
+            beginSecond: '00',
+            endHour: '12',
+            endMinute: '05',
+            endSecond: '00',
+            volume: '50'
+        }];
+    }
+
     return {
-        type: 'daily',
-        entries: [],
-
-        init() {
-            // $el is the element with x-data="scheduleForm()" — guaranteed correct reference
-            var el = this.$el;
-            this.type = el.getAttribute('data-schedule-type') || 'daily';
-
-            var entriesAttr = el.getAttribute('data-schedule-entries');
-            if (entriesAttr) {
-                try {
-                    var parsed = JSON.parse(entriesAttr);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        this.entries = parsed;
-                        return;
-                    }
-                } catch(e) {
-                    // JSON parse failed, fall through to default
-                }
-            }
-
-            // Default single entry
-            this.entries = [{
-                audioId: '',
-                beginHour: '12',
-                beginMinute: '00',
-                beginSecond: '00',
-                endHour: '12',
-                endMinute: '05',
-                endSecond: '00',
-                volume: '50'
-            }];
-        },
+        type: type || 'daily',
+        entries: entries,
 
         pad: function(n) { return String(n).padStart(2, '0'); },
 
