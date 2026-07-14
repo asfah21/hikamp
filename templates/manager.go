@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -86,6 +87,39 @@ func Init() {
 			},
 			"geInt64": func(a, b int64) bool {
 				return a >= b
+			},
+			"parseTime": func(timeStr, part string) string {
+				if timeStr == "" {
+					if part == "h" {
+						return "12"
+					}
+					if part == "m" || part == "s" {
+						return "00"
+					}
+					return ""
+				}
+				// Remove timezone suffix
+				re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+				timeStr = re.ReplaceAllString(timeStr, "")
+				parts := strings.Split(timeStr, ":")
+				switch part {
+				case "h":
+					if len(parts) >= 1 {
+						return parts[0]
+					}
+				case "m":
+					if len(parts) >= 2 {
+						return parts[1]
+					}
+				case "s":
+					if len(parts) >= 3 {
+						return parts[2]
+					}
+				}
+				if part == "h" {
+					return "12"
+				}
+				return "00"
 			},
 		},
 	}

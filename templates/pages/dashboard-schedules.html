@@ -16,10 +16,6 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                     Sync to Device
                 </a>
-                <!-- <a href="#" class="dropdown-item" style="display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; color: var(--ink); text-decoration: none; transition: background 0.15s;" hx-get="/admin/schedules/sync-from" hx-target="#modal-container" hx-trigger="click" onclick="this.closest('.dropdown-menu').classList.remove('show')">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2v6H3M3 2v6h18"/><path d="M21 12v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6"/><line x1="12" y1="12" x2="12" y2="18"/></svg>
-                    Sync from Device
-                </a> -->
             </div>
         </div>
     </div>
@@ -41,9 +37,8 @@
                 <th>No</th>
                 <th>Name</th>
                 <th>Type</th>
-                <th>Begin Time</th>
-                <th>End Time</th>
-                <th>Volume</th>
+                <th>Entries</th>
+                <th>Devices</th>
                 <th>Status</th>
                 <th>Actions</th>
             </tr>
@@ -54,9 +49,20 @@
                 <td style="text-align: center; color: var(--inkMuted);">{{add $i 1}}</td>
                 <td><strong>{{$s.Name}}</strong></td>
                 <td><span class="badge badge-neutral">{{$s.ScheduleType}}</span></td>
-                <td>{{$s.BeginTime}}</td>
-                <td>{{$s.EndTime}}</td>
-                <td>{{$s.Volume}}</td>
+                <td style="font-size: 0.85em;">
+                    {{if $s.Entries}}
+                        {{len $s.Entries}} time range(s)
+                    {{else}}
+                        <span style="color: var(--inkMuted)">No entries</span>
+                    {{end}}
+                </td>
+                <td style="font-size: 0.85em;">
+                    {{if $s.Devices}}
+                        {{range $d := $s.Devices}}#{{$d.DeviceID}} {{end}}
+                    {{else}}
+                        <span style="color: var(--inkMuted)">No devices</span>
+                    {{end}}
+                </td>
                 <td>
                     <span class="badge {{if $s.Enabled}}badge-success{{else}}badge-error{{end}}">
                         {{if $s.Enabled}}Enabled{{else}}Disabled{{end}}
@@ -77,7 +83,7 @@
                 </td>
             </tr>
             {{else}}
-            <tr><td colspan="8" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No schedules yet. <a href="/admin/schedules/create" hx-get="/admin/schedules/create" hx-target="#modal-container">Create your first schedule</a></td></tr>
+            <tr><td colspan="7" style="text-align: center; padding: 3rem; color: var(--inkMuted);">No schedules yet. <a href="/admin/schedules/create" hx-get="/admin/schedules/create" hx-target="#modal-container">Create your first schedule</a></td></tr>
             {{end}}
         </tbody>
     </table>

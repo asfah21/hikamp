@@ -37,10 +37,8 @@ func DeleteSchedule(id int) error {
 	return repositories.DeleteSchedule(id)
 }
 
-// getStablePlanSchemeID generates a stable, unique planSchemeID for a schedule.
-// Uses schedule ID + name to ensure it's stable across syncs (no random/timestamp component).
-func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
-	// Sanitize name to remove characters that might cause issues in planSchemeID
+// getStablePlanSchemeID generates a stable, unique planSchemeID for a schedule+entry combination.
+func getStablePlanSchemeID(s *models.BroadcastSchedule, entryIdx int) string {
 	safeName := strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == ' ' {
 			return r
@@ -48,244 +46,230 @@ func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
 		return '_'
 	}, s.Name)
 
+	base := fmt.Sprintf("sch_%s", safeName)
 	if s.ID > 0 {
-		return fmt.Sprintf("sch_%d_%s", s.ID, safeName)
+		base = fmt.Sprintf("sch_%d_%s", s.ID, safeName)
 	}
-	return fmt.Sprintf("sch_%s", safeName)
+	if entryIdx > 0 {
+		base = fmt.Sprintf("%s_e%d", base, entryIdx)
+	}
+	return base
 }
 
-// SyncScheduleToDevice syncs a schedule to a Hikvision device.
-// Uses DeletePlanScheme + AddPlanScheme pattern for reliability.
-// DeletePlanScheme removes the existing schedule with the same planSchemeID,
-// then AddPlanScheme creates the new one. This avoids 403 "Invalid Operation"
-// errors from ModifyPlanScheme on some firmware versions.
-// Also handles devices that don't support SearchPlanScheme (GET 403 methodNotAllowed).
-// Uses HikvisionAudioID from the audio_files table as customAudioID in the payload.
+// SyncScheduleToDevice syncs a schedule's entries to all its target devices.
 func SyncScheduleToDevice(scheduleID int) error {
 	schedule, err := repositories.GetScheduleByID(scheduleID)
 	if err != nil {
 		return err
 	}
 
-	// Validate begin_time and end_time are not empty
-	if schedule.BeginTime == "" || schedule.EndTime == "" {
-		return fmt.Errorf("cannot sync schedule '%s': begin_time and end_time must be set. Edit the schedule and set the time values first", schedule.Name)
+	if len(schedule.Entries) == 0 {
+		return fmt.Errorf("schedule '%s' has no entries. Add at least one time range entry first", schedule.Name)
 	}
-
-	device, err := repositories.GetDeviceByID(schedule.DeviceID)
-	if err != nil {
-		return err
+	if len(schedule.Devices) == 0 {
+		return fmt.Errorf("schedule '%s' has no target devices. Assign at least one device first", schedule.Name)
 	}
-
-	// Lookup the audio file to get HikvisionAudioID
-	audioFile, err := repositories.GetAudioFileByID(schedule.AudioID)
-	if err != nil {
-		return fmt.Errorf("audio file not found (ID: %d): %w", schedule.AudioID, err)
-	}
-	if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
-		return fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
-	}
-
-	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
 	// Get timezone offset from location settings
-	timezoneOffset := "08:00" // default fallback
+	timezoneOffset := "08:00"
 	location, err := repositories.GetPrayerLocation()
 	if err == nil && location.Timezone != "" {
 		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
-	// Generate a stable planSchemeID
-	planSchemeID := getStablePlanSchemeID(schedule)
+	var lastErr error
+	for _, dev := range schedule.Devices {
+		device, err := repositories.GetDeviceByID(dev.DeviceID)
+		if err != nil {
+			lastErr = fmt.Errorf("device ID %d not found: %w", dev.DeviceID, err)
+			continue
+		}
 
-	log.Printf("[SYNC] planSchemeID=%s, beginTime=%s, endTime=%s, hikvisionAudioID=%d", planSchemeID, schedule.BeginTime, schedule.EndTime, *audioFile.HikvisionAudioID)
+		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
-	// Step 1: Try to delete existing plan scheme with the same ID (ignore error if not found)
-	// This handles both:
-	//   - Devices that support SearchPlanScheme: we can't search, so we just try delete
-	//   - Devices that don't support SearchPlanScheme: delete may also fail, we ignore
-	log.Printf("[SYNC] Attempting to remove existing planScheme '%s' if it exists", planSchemeID)
-	delErr := client.DeletePlanScheme(planSchemeID)
-	if delErr != nil {
-		// Delete might fail if scheme doesn't exist or device doesn't support ModifyPlanScheme for delete
-		// Either way, we continue to try Add
-		log.Printf("[SYNC] Delete existing scheme (if any) result: %v (continuing)", delErr)
+		for idx, entry := range schedule.Entries {
+			if entry.BeginTime == "" || entry.EndTime == "" {
+				log.Printf("[SYNC] Skipping entry %d of schedule '%s': begin_time or end_time is empty", idx, schedule.Name)
+				continue
+			}
+
+			audioFile, err := repositories.GetAudioFileByID(entry.AudioID)
+			if err != nil {
+				lastErr = fmt.Errorf("audio file not found (ID: %d): %w", entry.AudioID, err)
+				continue
+			}
+			if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
+				lastErr = fmt.Errorf("audio file '%s' has no Hikvision audio ID. Upload the audio to the device first", audioFile.Name)
+				continue
+			}
+
+			planSchemeID := getStablePlanSchemeID(schedule, idx)
+			log.Printf("[SYNC] planSchemeID=%s, entry=%d, beginTime=%s, endTime=%s, hikvisionAudioID=%d, device=%s",
+				planSchemeID, idx, entry.BeginTime, entry.EndTime, *audioFile.HikvisionAudioID, device.Name)
+
+			// Delete existing plan scheme with same ID (ignore errors)
+			delErr := client.DeletePlanScheme(planSchemeID)
+			if delErr != nil {
+				log.Printf("[SYNC] Delete existing scheme (if any) result: %v (continuing)", delErr)
+			}
+			time.Sleep(500 * time.Millisecond)
+
+			// Build and send payload for this entry
+			payload := buildHikvisionSchedulePayload(schedule, &entry, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
+			err = client.CreateSchedule(payload)
+			if err != nil {
+				lastErr = fmt.Errorf("sync entry %d to device '%s' failed: %w", idx, device.Name, err)
+				continue
+			}
+			log.Printf("[SYNC] Entry %d synced successfully to device '%s': %s", idx, device.Name, planSchemeID)
+		}
 	}
-	// Small delay to let device process the deletion
-	time.Sleep(500 * time.Millisecond)
 
-	// Step 2: Build and send the schedule payload using AddPlanScheme
-	payload := buildHikvisionSchedulePayload(schedule, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
-
-	err = client.CreateSchedule(payload)
-	if err != nil {
-		return fmt.Errorf("sync schedule failed: %w", err)
-	}
-
-	log.Printf("[SYNC] Schedule synced successfully: %s", planSchemeID)
-	return nil
+	return lastErr
 }
 
 // SyncAllSchedulesToDevice syncs all local schedules to their respective devices.
-// VPS is the source of truth — this mirrors local schedules to devices.
-// For each device that has schedules, it:
-//  1. Searches all existing schedules on the device
-//  2. Deletes all of them (device schedules that don't exist in VPS are removed)
-//  3. Uploads all local schedules for that device
-//
-// Returns a summary of successes and failures.
 func SyncAllSchedulesToDevice() (int, int, error) {
 	schedules, err := repositories.GetAllSchedules()
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get schedules: %w", err)
 	}
 
-	// Group schedules by device
-	deviceSchedules := make(map[int][]models.BroadcastSchedule)
-	for _, s := range schedules {
-		deviceSchedules[s.DeviceID] = append(deviceSchedules[s.DeviceID], s)
+	// Get timezone offset
+	timezoneOffset := "08:00"
+	location, err := repositories.GetPrayerLocation()
+	if err == nil && location.Timezone != "" {
+		timezoneOffset = getTimezoneOffset(location.Timezone)
 	}
 
 	success := 0
 	fail := 0
 	var lastErr error
 
-	for deviceID, scheds := range deviceSchedules {
-		device, err := repositories.GetDeviceByID(deviceID)
-		if err != nil {
-			log.Printf("[SYNC ALL] Device ID %d not found: %v", deviceID, err)
-			fail += len(scheds)
-			lastErr = err
+	for _, schedule := range schedules {
+		if !schedule.Enabled {
+			log.Printf("[SYNC ALL] Skipping disabled schedule '%s'", schedule.Name)
+			continue
+		}
+		if len(schedule.Entries) == 0 {
+			log.Printf("[SYNC ALL] Skipping schedule '%s': no entries", schedule.Name)
+			continue
+		}
+		if len(schedule.Devices) == 0 {
+			log.Printf("[SYNC ALL] Skipping schedule '%s': no target devices", schedule.Name)
 			continue
 		}
 
-		client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
+		for _, dev := range schedule.Devices {
+			device, err := repositories.GetDeviceByID(dev.DeviceID)
+			if err != nil {
+				log.Printf("[SYNC ALL] Device ID %d not found: %v", dev.DeviceID, err)
+				fail++
+				lastErr = err
+				continue
+			}
 
-		// Get timezone offset from location settings
-		timezoneOffset := "08:00" // default fallback
-		location, err := repositories.GetPrayerLocation()
-		if err == nil && location.Timezone != "" {
-			timezoneOffset = getTimezoneOffset(location.Timezone)
-		}
+			client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
-		// Step 1: Search all existing schedules on the device
-		log.Printf("[SYNC ALL] Searching existing schedules on device '%s'", device.Name)
-		existingSchemes := []map[string]interface{}{}
-		schemes, searchErr := client.SearchPlanScheme()
-		if searchErr == nil {
-			if schemesMap, ok := schemes.(map[string]interface{}); ok {
-				if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
-					for _, item := range list {
-						if scheme, ok := item.(map[string]interface{}); ok {
-							existingSchemes = append(existingSchemes, scheme)
+			// Search existing schemes to clear them later
+			existingSchemes := []map[string]interface{}{}
+			schemes, searchErr := client.SearchPlanScheme()
+			if searchErr == nil {
+				if schemesMap, ok := schemes.(map[string]interface{}); ok {
+					if list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{}); ok {
+						for _, item := range list {
+							if scheme, ok := item.(map[string]interface{}); ok {
+								existingSchemes = append(existingSchemes, scheme)
+							}
 						}
 					}
 				}
+			} else {
+				log.Printf("[SYNC ALL] SearchPlanScheme failed on device '%s': %v", device.Name, searchErr)
 			}
-		} else {
-			log.Printf("[SYNC ALL] SearchPlanScheme failed on device '%s': %v — will try delete+add per schedule", device.Name, searchErr)
-		}
 
-		// Step 2: Delete all existing schedules on the device (mirror: remove what's not in source)
-		// We do this by sending an empty broadcastPlanSchemeList via AddPlanScheme
-		// which replaces ALL schedules with the ones we provide.
-		// First, delete all by sending empty list, then add all local schedules.
-		if len(existingSchemes) > 0 {
-			log.Printf("[SYNC ALL] Removing %d existing schedule(s) from device '%s'", len(existingSchemes), device.Name)
-			// Send empty payload to clear all schedules
-			clearPayload := map[string]interface{}{
-				"broadcastPlanSchemeList": []map[string]interface{}{},
-				"terminalInfoList": []map[string]interface{}{
-					{
-						"terminalID": 1,
-						"audioOutID": []int{1},
+			// Clear existing schemes
+			if len(existingSchemes) > 0 {
+				log.Printf("[SYNC ALL] Removing %d existing schedule(s) from device '%s'", len(existingSchemes), device.Name)
+				clearPayload := map[string]interface{}{
+					"broadcastPlanSchemeList": []map[string]interface{}{},
+					"terminalInfoList": []map[string]interface{}{
+						{
+							"terminalID": 1,
+							"audioOutID": []int{1},
+						},
 					},
-				},
-			}
-			// Try ModifyPlanScheme first (non-destructive per scheme, but we send empty list)
-			// If it fails, try AddPlanScheme with empty list
-			clearErr := client.ModifyPlanScheme(clearPayload)
-			if clearErr != nil {
-				log.Printf("[SYNC ALL] ModifyPlanScheme clear failed on '%s': %v — trying AddPlanScheme", device.Name, clearErr)
-				clearErr = client.CreateSchedule(clearPayload)
-			}
-			if clearErr != nil {
-				log.Printf("[SYNC ALL] Failed to clear schedules on device '%s': %v", device.Name, clearErr)
-				// Continue anyway, try to add schedules
-			}
-			time.Sleep(500 * time.Millisecond)
-		}
-
-		// Step 3: Upload all local schedules for this device
-		allSchemes := []map[string]interface{}{}
-		for _, s := range scheds {
-			// Validate schedule has required fields
-			if s.BeginTime == "" || s.EndTime == "" {
-				log.Printf("[SYNC ALL] Skipping schedule '%s' (ID: %d): begin_time or end_time is empty", s.Name, s.ID)
-				fail++
-				lastErr = fmt.Errorf("schedule '%s' has empty begin/end time", s.Name)
-				continue
+				}
+				clearErr := client.ModifyPlanScheme(clearPayload)
+				if clearErr != nil {
+					log.Printf("[SYNC ALL] ModifyPlanScheme clear failed on '%s': %v — trying AddPlanScheme", device.Name, clearErr)
+					clearErr = client.CreateSchedule(clearPayload)
+				}
+				if clearErr != nil {
+					log.Printf("[SYNC ALL] Failed to clear schedules on device '%s': %v", device.Name, clearErr)
+				}
+				time.Sleep(500 * time.Millisecond)
 			}
 
-			// Lookup the audio file to get HikvisionAudioID
-			audioFile, err := repositories.GetAudioFileByID(s.AudioID)
-			if err != nil {
-				log.Printf("[SYNC ALL] Skipping schedule '%s' (ID: %d): audio file not found: %v", s.Name, s.ID, err)
-				fail++
-				lastErr = err
-				continue
-			}
-			if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
-				log.Printf("[SYNC ALL] Skipping schedule '%s' (ID: %d): audio '%s' has no Hikvision audio ID", s.Name, s.ID, audioFile.Name)
-				fail++
-				lastErr = fmt.Errorf("audio '%s' has no Hikvision audio ID", audioFile.Name)
-				continue
+			// Upload all entries for this schedule to this device
+			allSchemes := []map[string]interface{}{}
+			for idx, entry := range schedule.Entries {
+				if entry.BeginTime == "" || entry.EndTime == "" {
+					log.Printf("[SYNC ALL] Skipping entry %d of schedule '%s': begin/end time empty", idx, schedule.Name)
+					fail++
+					continue
+				}
+
+				audioFile, err := repositories.GetAudioFileByID(entry.AudioID)
+				if err != nil {
+					log.Printf("[SYNC ALL] Skipping entry %d of '%s': audio file not found: %v", idx, schedule.Name, err)
+					fail++
+					lastErr = err
+					continue
+				}
+				if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
+					log.Printf("[SYNC ALL] Skipping entry %d of '%s': audio '%s' has no Hikvision audio ID", idx, schedule.Name, audioFile.Name)
+					fail++
+					lastErr = fmt.Errorf("audio '%s' has no Hikvision audio ID", audioFile.Name)
+					continue
+				}
+
+				planSchemeID := getStablePlanSchemeID(&schedule, idx)
+				schemePayload := buildHikvisionSchedulePayload(&schedule, &entry, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
+
+				if list, ok := schemePayload["broadcastPlanSchemeList"].([]map[string]interface{}); ok && len(list) > 0 {
+					allSchemes = append(allSchemes, list[0])
+				}
 			}
 
-			planSchemeID := getStablePlanSchemeID(&s)
-			schemePayload := buildHikvisionSchedulePayload(&s, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
-
-			// Extract the planScheme from the payload
-			if list, ok := schemePayload["broadcastPlanSchemeList"].([]map[string]interface{}); ok && len(list) > 0 {
-				allSchemes = append(allSchemes, list[0])
-			}
-		}
-
-		// Send all schedules in one AddPlanScheme call
-		if len(allSchemes) > 0 {
-			addPayload := map[string]interface{}{
-				"broadcastPlanSchemeList": allSchemes,
-				"terminalInfoList": []map[string]interface{}{
-					{
-						"terminalID": 1,
-						"audioOutID": []int{1},
+			// Send all schemes in one AddPlanScheme call
+			if len(allSchemes) > 0 {
+				addPayload := map[string]interface{}{
+					"broadcastPlanSchemeList": allSchemes,
+					"terminalInfoList": []map[string]interface{}{
+						{
+							"terminalID": 1,
+							"audioOutID": []int{1},
+						},
 					},
-				},
+				}
+				err = client.CreateSchedule(addPayload)
+				if err != nil {
+					log.Printf("[SYNC ALL] Failed to upload %d entries to device '%s': %v", len(allSchemes), device.Name, err)
+					fail += len(allSchemes)
+					lastErr = err
+					continue
+				}
+				success += len(allSchemes)
+				log.Printf("[SYNC ALL] Synced %d entries to device '%s' (schedule '%s')", len(allSchemes), device.Name, schedule.Name)
 			}
-
-			err = client.CreateSchedule(addPayload)
-			if err != nil {
-				log.Printf("[SYNC ALL] Failed to upload schedules to device '%s': %v", device.Name, err)
-				fail += len(scheds)
-				lastErr = err
-				continue
-			}
-			success += len(allSchemes)
-			log.Printf("[SYNC ALL] Successfully synced %d schedule(s) to device '%s'", len(allSchemes), device.Name)
-		} else {
-			log.Printf("[SYNC ALL] No valid schedules to sync to device '%s'", device.Name)
 		}
 	}
 
 	return success, fail, lastErr
 }
 
-// SyncSchedulesFromDevice fetches all plan schemes from a Hikvision device
-// and mirrors them to the local database.
-// Device is the source of truth — this replaces ALL local schedules for that device
-// with the schedules from the device (mirror: delete old, insert new).
-// Note: Some firmware versions do not support SearchPlanScheme (POST) and return
-// 403 "methodNotAllowed". In that case, sync-from-device is not possible.
+// SyncSchedulesFromDevice fetches all plan schemes from a Hikvision device and imports them.
 func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	device, err := repositories.GetDeviceByID(deviceID)
 	if err != nil {
@@ -294,14 +278,11 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 
 	client := hikvision.NewClient(device.IPAddress, device.Port, device.Username, device.Password)
 
-	// Search for all plan schemes on the device
-	// Note: Some firmware versions return 403 "methodNotAllowed" for this endpoint.
 	schemes, err := client.SearchPlanScheme()
 	if err != nil {
-		return 0, fmt.Errorf("sync from device failed: this device does not support searching schedules (SearchPlanScheme returned 403). Try creating schedules locally and syncing to device instead: %w", err)
+		return 0, fmt.Errorf("sync from device failed: this device does not support searching schedules: %w", err)
 	}
 
-	// Parse the response
 	schemesMap, ok := schemes.(map[string]interface{})
 	if !ok {
 		return 0, fmt.Errorf("unexpected response format from SearchPlanScheme")
@@ -309,16 +290,14 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 
 	list, ok := schemesMap["broadcastPlanSchemeList"].([]interface{})
 	if !ok || len(list) == 0 {
-		return 0, nil // no schedules on device
+		return 0, nil
 	}
 
-	// Step 1: Delete ALL existing local schedules for this device (mirror: remove old data)
-	log.Printf("[SYNC FROM DEVICE] Removing all existing local schedules for device ID %d", deviceID)
+	// Delete all existing local schedules that reference this device
 	if err := repositories.DeleteSchedulesByDevice(deviceID); err != nil {
 		return 0, fmt.Errorf("failed to clear local schedules for device: %w", err)
 	}
 
-	// Step 2: Import all schedules from device
 	synced := 0
 	for _, item := range list {
 		scheme, ok := item.(map[string]interface{})
@@ -330,29 +309,27 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 		planSchemeName, _ := scheme["planSchemeName"].(string)
 		enabled, _ := scheme["enabled"].(bool)
 
-		// Try to extract schedule info from dailyscheduleInfo or weklyScheduleInfo (Hikvision typo)
 		var beginTime, endTime string
 		var scheduleType string = "daily"
 		var dayOfWeek int
 
 		if dailyInfo, ok := scheme["dailyscheduleInfo"].(map[string]interface{}); ok {
-			if list, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok && len(list) > 0 {
-				if entry, ok := list[0].(map[string]interface{}); ok {
+			if schedList, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok && len(schedList) > 0 {
+				if entry, ok := schedList[0].(map[string]interface{}); ok {
 					beginTime, _ = entry["beginTime"].(string)
 					endTime, _ = entry["endTime"].(string)
 				}
 			}
 		}
 
-		// Check both "weklyScheduleInfo" (Hikvision typo) and "weeklyScheduleInfo" (correct)
 		if weeklyInfo, ok := scheme["weklyScheduleInfo"].(map[string]interface{}); ok {
 			scheduleType = "weekly"
-			if list, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(list) > 0 {
-				if entry, ok := list[0].(map[string]interface{}); ok {
-					if d, ok := entry["dayOfWeek"].(float64); ok {
+			if wList, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(wList) > 0 {
+				if wEntry, ok := wList[0].(map[string]interface{}); ok {
+					if d, ok := wEntry["dayOfWeek"].(float64); ok {
 						dayOfWeek = int(d)
 					}
-					if schedList, ok := entry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
+					if schedList, ok := wEntry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
 						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
 							beginTime, _ = schedEntry["beginTime"].(string)
 							endTime, _ = schedEntry["endTime"].(string)
@@ -362,12 +339,12 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 			}
 		} else if weeklyInfo, ok := scheme["weeklyScheduleInfo"].(map[string]interface{}); ok {
 			scheduleType = "weekly"
-			if list, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(list) > 0 {
-				if entry, ok := list[0].(map[string]interface{}); ok {
-					if d, ok := entry["dayOfWeek"].(float64); ok {
+			if wList, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(wList) > 0 {
+				if wEntry, ok := wList[0].(map[string]interface{}); ok {
+					if d, ok := wEntry["dayOfWeek"].(float64); ok {
 						dayOfWeek = int(d)
 					}
-					if schedList, ok := entry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
+					if schedList, ok := wEntry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
 						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
 							beginTime, _ = schedEntry["beginTime"].(string)
 							endTime, _ = schedEntry["endTime"].(string)
@@ -377,12 +354,11 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 			}
 		}
 
-		// Clean timezone suffix from times
+		// Clean timezone suffix
 		re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
 		beginTime = re.ReplaceAllString(beginTime, "")
 		endTime = re.ReplaceAllString(endTime, "")
 
-		// Use planSchemeName if available, fall back to planSchemeID
 		name := planSchemeName
 		if name == "" {
 			name = planSchemeID
@@ -391,20 +367,31 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 			name = fmt.Sprintf("Imported Schedule %d", synced+1)
 		}
 
-		// Create a local schedule record
+		// Create schedule with one entry and one device
 		schedule := &models.BroadcastSchedule{
 			Name:         name,
-			DeviceID:     deviceID,
 			ScheduleType: scheduleType,
-			BeginTime:    beginTime,
-			EndTime:      endTime,
-			Volume:       50,
 			Enabled:      enabled,
+			Entries: []models.ScheduleEntry{
+				{
+					BeginTime: beginTime,
+					EndTime:   endTime,
+					Volume:    50,
+				},
+			},
+			Devices: []models.ScheduleDevice{
+				{
+					DeviceID: deviceID,
+				},
+			},
 		}
 
 		if scheduleType == "weekly" && dayOfWeek > 0 {
 			schedule.DayOfWeek = &dayOfWeek
 		}
+
+		// Try to find matching audio by name/planSchemeID
+		// For imported schedules we leave AudioID as 0 (unlinked) — user can edit later
 
 		_, err := repositories.CreateSchedule(schedule)
 		if err != nil {
@@ -417,10 +404,7 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	return synced, nil
 }
 
-// getTimezoneOffset converts a timezone name (e.g., "Asia/Jakarta") to offset string (e.g., "08:00").
-// Note: Returns WITHOUT the "+" prefix because Web UI uses "+" as separator:
-// "HH:MM:SS+08:00" — the "+" is added by the caller.
-// For negative offsets, the sign IS included (e.g., "-05:00").
+// getTimezoneOffset converts a timezone name to offset string (e.g., "08:00").
 func getTimezoneOffset(tzName string) string {
 	loc, err := time.LoadLocation(tzName)
 	if err != nil {
@@ -430,65 +414,43 @@ func getTimezoneOffset(tzName string) string {
 	hours := offset / 3600
 	mins := (offset % 3600) / 60
 	if hours >= 0 {
-		// Positive offset: return without "+" prefix (caller adds "+" separator)
 		return fmt.Sprintf("%02d:%02d", hours, mins)
 	}
-	// Negative offset: include "-" prefix
 	return fmt.Sprintf("-%02d:%02d", -hours, mins)
 }
 
 // formatTimeForHikvision converts a time string to "HH:MM:SS+HH:MM" format.
-// Hikvision Web UI uses "+" separator between time and timezone (e.g., "22:02:00+08:00").
-// Handles various input formats:
-//   - "HH:MM" -> "HH:MM:SS+HH:MM"
-//   - "HH:MM:SS" -> "HH:MM:SS+HH:MM"
-//   - "HH:MM:SS+08:00" -> "HH:MM:SS+HH:MM" (timezone is replaced)
-//   - "" -> returns empty string (caller should validate)
 func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	if timeStr == "" {
 		return ""
 	}
 
-	// Remove any existing timezone suffix (match any +/-HH:MM pattern at the end)
 	re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
 	timeStr = re.ReplaceAllString(timeStr, "")
 
-	// Also remove any existing timezone with space separator (e.g., " 08:00" at the end)
 	reSpace := regexp.MustCompile(` \d{2}:\d{2}$`)
 	timeStr = reSpace.ReplaceAllString(timeStr, "")
 
-	// Count colons to determine format
 	parts := strings.Split(timeStr, ":")
 	switch len(parts) {
 	case 2:
-		// HH:MM -> HH:MM:SS+HH:MM (plus separator)
 		return fmt.Sprintf("%s:%s:00+%s", parts[0], parts[1], timezoneOffset)
 	case 3:
-		// HH:MM:SS -> HH:MM:SS+HH:MM (plus separator)
 		return fmt.Sprintf("%s:%s:%s+%s", parts[0], parts[1], parts[2], timezoneOffset)
 	default:
-		// Unknown format, return as-is with timezone (plus separator)
 		return timeStr + "+" + timezoneOffset
 	}
 }
 
-// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from our schedule model.
-// Uses map[string]interface{} payload matching the official Hikvision Web UI format.
-// hikvisionAudioID is the customAudioID from the Hikvision device (not the local audio_files.id).
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string, hikvisionAudioID int) map[string]interface{} {
-	// Format times using Hikvision Web UI format: "HH:MM:SS+HH:MM" (plus separator)
-	beginTime := formatTimeForHikvision(s.BeginTime, timezoneOffset)
-	endTime := formatTimeForHikvision(s.EndTime, timezoneOffset)
+// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from a schedule + entry.
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.ScheduleEntry, timezoneOffset string, planSchemeID string, hikvisionAudioID int) map[string]interface{} {
+	beginTime := formatTimeForHikvision(entry.BeginTime, timezoneOffset)
+	endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
 
-	// Hikvision Web UI uses "YYYY-MM-DD+HH:MM" format for startTime/stopTime
-	// where HH:MM is the TIMEZONE OFFSET (e.g., "08:00" for UTC+8), NOT the current time.
-	// Example from Web UI: "startTime": "2026-07-06+08:00"
 	now := time.Now()
 	today := now.Format("2006-01-02") + "+" + timezoneOffset
 	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
 
-	// Build schedule list entry
-	// IMPORTANT: customAudioID must be the Hikvision device's audio ID, not the local database ID
 	scheduleEntry := map[string]interface{}{
 		"beginTime": beginTime,
 		"endTime":   endTime,
@@ -497,11 +459,10 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset s
 			"audioSource":   "customAudio",
 			"customAudioID": []int{hikvisionAudioID},
 			"audioLevel":    5,
-			"audioVolume":   s.Volume,
+			"audioVolume":   entry.Volume,
 		},
 	}
 
-	// Build the plan scheme
 	planScheme := map[string]interface{}{
 		"planSchemeID":   planSchemeID,
 		"planSchemeName": s.Name,

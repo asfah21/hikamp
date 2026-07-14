@@ -188,13 +188,21 @@ func AdminBroadcastNow(w http.ResponseWriter, r *http.Request) {
 		// Create a schedule in the database (same pattern as prayer broadcast)
 		schedule := &models.BroadcastSchedule{
 			Name:         "Broadcast Now: " + audio.Name,
-			AudioID:      audioID,
-			DeviceID:     deviceID,
 			ScheduleType: "daily",
-			BeginTime:    beginTime,
-			EndTime:      endTime,
-			Volume:       volume,
 			Enabled:      true,
+			Entries: []models.ScheduleEntry{
+				{
+					AudioID:   audioID,
+					BeginTime: beginTime,
+					EndTime:   endTime,
+					Volume:    volume,
+				},
+			},
+			Devices: []models.ScheduleDevice{
+				{
+					DeviceID: deviceID,
+				},
+			},
 		}
 
 		_, err = services.CreateSchedule(schedule)

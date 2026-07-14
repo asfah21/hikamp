@@ -210,15 +210,21 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 		// Create schedule in database (daily type = repeats every day)
 		schedule := &models.BroadcastSchedule{
 			Name:         "Prayer: " + prayerName,
-			AudioID:      audioID,
-			DeviceID:     deviceID,
 			ScheduleType: "daily",
-			BeginTime:    prayerTime,
-			EndTime:      endTime,
-			Volume:       cfg.Volume,
 			Enabled:      true,
-			DayOfWeek:    nil,
-			SpecificDate: nil,
+			Entries: []models.ScheduleEntry{
+				{
+					AudioID:   audioID,
+					BeginTime: prayerTime,
+					EndTime:   endTime,
+					Volume:    cfg.Volume,
+				},
+			},
+			Devices: []models.ScheduleDevice{
+				{
+					DeviceID: deviceID,
+				},
+			},
 		}
 
 		_, err = repositories.CreateSchedule(schedule)

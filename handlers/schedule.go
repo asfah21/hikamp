@@ -23,19 +23,11 @@ func AdminSchedules(w http.ResponseWriter, r *http.Request) {
 // AdminSchedulesCreate handles schedule creation
 func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
-		audioID, _ := strconv.Atoi(r.FormValue("audio_id"))
-		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
-		volume, _ := strconv.Atoi(r.FormValue("volume"))
 		enabled := r.FormValue("enabled") == "on"
 
 		schedule := &models.BroadcastSchedule{
 			Name:         r.FormValue("name"),
-			AudioID:      audioID,
-			DeviceID:     deviceID,
 			ScheduleType: r.FormValue("schedule_type"),
-			BeginTime:    r.FormValue("begin_time"),
-			EndTime:      r.FormValue("end_time"),
-			Volume:       volume,
 			Enabled:      enabled,
 		}
 
@@ -49,6 +41,48 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 		if schedule.ScheduleType == "specific_date" {
 			date := r.FormValue("specific_date")
 			schedule.SpecificDate = &date
+		}
+
+		// Parse entries (multi: audio_id[], begin_time[], end_time[], volume[])
+		audioIDs := r.Form["audio_id"]
+		beginTimes := r.Form["begin_time"]
+		endTimes := r.Form["end_time"]
+		volumes := r.Form["volume"]
+
+		entryCount := len(audioIDs)
+		if len(beginTimes) > entryCount {
+			entryCount = len(beginTimes)
+		}
+		if len(endTimes) > entryCount {
+			entryCount = len(endTimes)
+		}
+		if len(volumes) > entryCount {
+			entryCount = len(volumes)
+		}
+
+		for i := 0; i < entryCount; i++ {
+			audioID, _ := strconv.Atoi(getFormArrayValue(audioIDs, i))
+			volume, _ := strconv.Atoi(getFormArrayValue(volumes, i))
+			if volume == 0 {
+				volume = 50
+			}
+			schedule.Entries = append(schedule.Entries, models.ScheduleEntry{
+				AudioID:   audioID,
+				BeginTime: getFormArrayValue(beginTimes, i),
+				EndTime:   getFormArrayValue(endTimes, i),
+				Volume:    volume,
+			})
+		}
+
+		// Parse devices (multi: device_id[])
+		deviceIDs := r.Form["device_id"]
+		for _, did := range deviceIDs {
+			d, _ := strconv.Atoi(did)
+			if d > 0 {
+				schedule.Devices = append(schedule.Devices, models.ScheduleDevice{
+					DeviceID: d,
+				})
+			}
 		}
 
 		_, err := services.CreateSchedule(schedule)
@@ -69,7 +103,6 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 		"Audio":   audioFiles,
 	}
 
-	// If HTMX request, render only the modal content without layout
 	if r.Header.Get("HX-Request") == "true" {
 		user, _ := r.Context().Value("user").(*models.User)
 		if user == nil {
@@ -97,21 +130,67 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == "POST" {
-		audioID, _ := strconv.Atoi(r.FormValue("audio_id"))
-		deviceID, _ := strconv.Atoi(r.FormValue("device_id"))
-		volume, _ := strconv.Atoi(r.FormValue("volume"))
 		enabled := r.FormValue("enabled") == "on"
 
 		schedule := &models.BroadcastSchedule{
 			ID:           id,
 			Name:         r.FormValue("name"),
-			AudioID:      audioID,
-			DeviceID:     deviceID,
 			ScheduleType: r.FormValue("schedule_type"),
-			BeginTime:    r.FormValue("begin_time"),
-			EndTime:      r.FormValue("end_time"),
-			Volume:       volume,
 			Enabled:      enabled,
+		}
+
+		if schedule.ScheduleType == "weekly" {
+			if dayOfWeekStr := r.FormValue("day_of_week"); dayOfWeekStr != "" {
+				dayOfWeek, _ := strconv.Atoi(dayOfWeekStr)
+				schedule.DayOfWeek = &dayOfWeek
+			}
+		}
+
+		if schedule.ScheduleType == "specific_date" {
+			date := r.FormValue("specific_date")
+			schedule.SpecificDate = &date
+		}
+
+		// Parse entries
+		audioIDs := r.Form["audio_id"]
+		beginTimes := r.Form["begin_time"]
+		endTimes := r.Form["end_time"]
+		volumes := r.Form["volume"]
+
+		entryCount := len(audioIDs)
+		if len(beginTimes) > entryCount {
+			entryCount = len(beginTimes)
+		}
+		if len(endTimes) > entryCount {
+			entryCount = len(endTimes)
+		}
+		if len(volumes) > entryCount {
+			entryCount = len(volumes)
+		}
+
+		for i := 0; i < entryCount; i++ {
+			audioID, _ := strconv.Atoi(getFormArrayValue(audioIDs, i))
+			volume, _ := strconv.Atoi(getFormArrayValue(volumes, i))
+			if volume == 0 {
+				volume = 50
+			}
+			schedule.Entries = append(schedule.Entries, models.ScheduleEntry{
+				AudioID:   audioID,
+				BeginTime: getFormArrayValue(beginTimes, i),
+				EndTime:   getFormArrayValue(endTimes, i),
+				Volume:    volume,
+			})
+		}
+
+		// Parse devices
+		deviceIDs := r.Form["device_id"]
+		for _, did := range deviceIDs {
+			d, _ := strconv.Atoi(did)
+			if d > 0 {
+				schedule.Devices = append(schedule.Devices, models.ScheduleDevice{
+					DeviceID: d,
+				})
+			}
 		}
 
 		err := services.UpdateSchedule(schedule)
@@ -139,7 +218,6 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 		"Audio":    audioFiles,
 	}
 
-	// If HTMX request, render only the modal content without layout
 	if r.Header.Get("HX-Request") == "true" {
 		user, _ := r.Context().Value("user").(*models.User)
 		if user == nil {
@@ -296,4 +374,12 @@ func AdminSchedulesSyncFrom(w http.ResponseWriter, r *http.Request) {
 	// GET: render sync form as modal
 	devices, _ := services.GetAllDevices()
 	renderScheduleSyncFromModal(w, devices)
+}
+
+// getFormArrayValue safely retrieves a value from a form array at the given index
+func getFormArrayValue(arr []string, idx int) string {
+	if idx >= 0 && idx < len(arr) {
+		return arr[idx]
+	}
+	return ""
 }

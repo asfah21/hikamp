@@ -41,6 +41,7 @@ func Init() {
 
 	log.Println("Database connected successfully")
 	createTables()
+	migrateLegacyData()
 }
 
 // createTables creates all required tables
@@ -88,17 +89,26 @@ func createTables() {
 		`CREATE TABLE IF NOT EXISTS broadcast_schedules (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(200) NOT NULL,
-			audio_id INTEGER REFERENCES audio_files(id) ON DELETE CASCADE,
-			device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
 			schedule_type VARCHAR(50) NOT NULL,
-			begin_time VARCHAR(50),
-			end_time VARCHAR(50),
-			volume INTEGER DEFAULT 50,
 			enabled BOOLEAN DEFAULT true,
 			day_of_week INTEGER,
 			specific_date VARCHAR(20),
 			created_at TIMESTAMP DEFAULT NOW(),
 			updated_at TIMESTAMP DEFAULT NOW()
+		)`,
+		`CREATE TABLE IF NOT EXISTS schedule_entries (
+			id SERIAL PRIMARY KEY,
+			schedule_id INTEGER NOT NULL REFERENCES broadcast_schedules(id) ON DELETE CASCADE,
+			audio_id INTEGER REFERENCES audio_files(id) ON DELETE SET NULL,
+			begin_time VARCHAR(50),
+			end_time VARCHAR(50),
+			volume INTEGER DEFAULT 50
+		)`,
+		`CREATE TABLE IF NOT EXISTS schedule_devices (
+			id SERIAL PRIMARY KEY,
+			schedule_id INTEGER NOT NULL REFERENCES broadcast_schedules(id) ON DELETE CASCADE,
+			device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
+			UNIQUE(schedule_id, device_id)
 		)`,
 		`CREATE TABLE IF NOT EXISTS broadcast_logs (
 			id SERIAL PRIMARY KEY,
@@ -204,8 +214,6 @@ func createTables() {
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS duration_str VARCHAR(20) DEFAULT ''`)
 
 	// Migration: add hikvision_audio_id column to audio_files if it doesn't exist
-	// Note: UNIQUE constraint added separately because ADD COLUMN IF NOT EXISTS + UNIQUE
-	// can fail on PostgreSQL if column exists but constraint doesn't.
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS hikvision_audio_id INTEGER`)
 	DB.Exec(`DO $$ BEGIN
 		IF NOT EXISTS (
@@ -218,7 +226,57 @@ func createTables() {
 	// Migration: add hikvision_path column to audio_files if it doesn't exist
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS hikvision_path VARCHAR(500) DEFAULT ''`)
 
+	// Migration: broadcast_schedules might still have old columns; safely drop them if they exist
+	// after we've migrated data to child tables
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS audio_id`)
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS device_id`)
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS begin_time`)
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS end_time`)
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS volume`)
+
 	log.Println("Database tables initialized")
+}
+
+// migrateLegacyData migrates single-column data from broadcast_schedules to child tables
+// for schedules created before the multi-entry/multi-device schema change.
+func migrateLegacyData() {
+	// Check if old columns exist (they might have been dropped)
+	var hasAudioID bool
+	err := DB.QueryRow(`SELECT EXISTS (
+		SELECT 1 FROM information_schema.columns 
+		WHERE table_name='broadcast_schedules' AND column_name='audio_id'
+	)`).Scan(&hasAudioID)
+	if err != nil || !hasAudioID {
+		return // already migrated
+	}
+
+	log.Println("Migrating legacy broadcast_schedules data to new schema...")
+
+	// For each schedule that has audio_id set, create a schedule_entry
+	_, err = DB.Exec(`
+		INSERT INTO schedule_entries (schedule_id, audio_id, begin_time, end_time, volume)
+		SELECT id, audio_id, begin_time, end_time, volume
+		FROM broadcast_schedules
+		WHERE audio_id IS NOT NULL
+		ON CONFLICT DO NOTHING
+	`)
+	if err != nil {
+		log.Printf("Migration schedule_entries: %v", err)
+	}
+
+	// For each schedule that has device_id set, create a schedule_device
+	_, err = DB.Exec(`
+		INSERT INTO schedule_devices (schedule_id, device_id)
+		SELECT id, device_id
+		FROM broadcast_schedules
+		WHERE device_id IS NOT NULL
+		ON CONFLICT DO NOTHING
+	`)
+	if err != nil {
+		log.Printf("Migration schedule_devices: %v", err)
+	}
+
+	log.Println("Legacy data migration complete")
 }
 
 func getEnv(key, defaultValue string) string {
