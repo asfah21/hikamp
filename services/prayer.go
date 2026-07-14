@@ -232,10 +232,10 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	}
 
 	if successCount > 0 {
-		messages = append(messages, fmt.Sprintf("✓ %d prayer schedule(s) saved to database. Go to Schedules menu to review and sync.", successCount))
+		messages = append(messages, fmt.Sprintf("%d prayer schedule(s) saved to database. Go to Schedules menu to review and sync.", successCount))
 	}
 	if skipCount > 0 {
-		messages = append(messages, fmt.Sprintf("ℹ %d prayer(s) skipped (not enabled).", skipCount))
+		messages = append(messages, fmt.Sprintf("%d prayer(s) skipped (not enabled).", skipCount))
 	}
 
 	return messages
