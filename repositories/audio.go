@@ -24,6 +24,9 @@ func GetAllAudioFiles() ([]models.AudioFile, error) {
 		}
 		files = append(files, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return files, nil
 }
 
@@ -80,6 +83,9 @@ func SearchAudioFiles(query string) ([]models.AudioFile, error) {
 		}
 		files = append(files, f)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return files, nil
 }
 
@@ -113,6 +119,9 @@ func GetAudioFilesByDeviceID(deviceID int) ([]models.AudioFile, error) {
 			return nil, err
 		}
 		files = append(files, f)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return files, nil
 }

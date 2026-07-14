@@ -24,6 +24,9 @@ func GetAllLogs() ([]models.BroadcastLog, error) {
 		}
 		logs = append(logs, l)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return logs, nil
 }
 
@@ -54,6 +57,9 @@ func GetTodayLogs() ([]models.BroadcastLog, error) {
 			return nil, err
 		}
 		logs = append(logs, l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return logs, nil
 }

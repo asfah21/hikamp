@@ -22,6 +22,9 @@ func GetAllSettings() ([]models.Setting, error) {
 		}
 		settings = append(settings, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return settings, nil
 }
 

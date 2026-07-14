@@ -24,6 +24,9 @@ func GetAllSchedules() ([]models.BroadcastSchedule, error) {
 		}
 		schedules = append(schedules, s)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return schedules, nil
 }
 

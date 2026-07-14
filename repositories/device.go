@@ -24,6 +24,9 @@ func GetAllDevices() ([]models.Device, error) {
 		}
 		devices = append(devices, d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return devices, nil
 }
 

@@ -48,6 +48,9 @@ func GetPrayerTimes(startDate, endDate string) ([]models.PrayerTime, error) {
 		}
 		times = append(times, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
 	return times, nil
 }
 
@@ -84,6 +87,9 @@ func GetPrayerBroadcastConfigs() ([]models.PrayerBroadcastConfig, error) {
 			return nil, err
 		}
 		configs = append(configs, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return configs, nil
 }
