@@ -23,6 +23,8 @@ type BroadcastSchedule struct {
 	Name         string           `json:"name"`
 	ScheduleType string           `json:"schedule_type"` // daily, weekly, specific_date
 	Enabled      bool             `json:"enabled"`
+	StartDate    *string          `json:"start_date"`    // optional date range start
+	EndDate      *string          `json:"end_date"`      // optional date range end
 	DayOfWeek    *int             `json:"day_of_week"`   // 1=Monday ... 7=Sunday (for weekly)
 	SpecificDate *string          `json:"specific_date"` // for specific_date type
 	Entries      []ScheduleEntry  `json:"entries"`

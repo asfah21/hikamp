@@ -31,6 +31,15 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 			Enabled:      enabled,
 		}
 
+		startDate := r.FormValue("start_date")
+		if startDate != "" {
+			schedule.StartDate = &startDate
+		}
+		endDate := r.FormValue("end_date")
+		if endDate != "" {
+			schedule.EndDate = &endDate
+		}
+
 		if schedule.ScheduleType == "weekly" {
 			if dayOfWeekStr := r.FormValue("day_of_week"); dayOfWeekStr != "" {
 				dayOfWeek, _ := strconv.Atoi(dayOfWeekStr)
@@ -137,6 +146,15 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 			Name:         r.FormValue("name"),
 			ScheduleType: r.FormValue("schedule_type"),
 			Enabled:      enabled,
+		}
+
+		startDate := r.FormValue("start_date")
+		if startDate != "" {
+			schedule.StartDate = &startDate
+		}
+		endDate := r.FormValue("end_date")
+		if endDate != "" {
+			schedule.EndDate = &endDate
 		}
 
 		if schedule.ScheduleType == "weekly" {

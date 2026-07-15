@@ -226,6 +226,10 @@ func createTables() {
 	// Migration: add hikvision_path column to audio_files if it doesn't exist
 	DB.Exec(`ALTER TABLE audio_files ADD COLUMN IF NOT EXISTS hikvision_path VARCHAR(500) DEFAULT ''`)
 
+	// Migration: add start_date and end_date columns to broadcast_schedules if they don't exist
+	DB.Exec(`ALTER TABLE broadcast_schedules ADD COLUMN IF NOT EXISTS start_date VARCHAR(20) DEFAULT ''`)
+	DB.Exec(`ALTER TABLE broadcast_schedules ADD COLUMN IF NOT EXISTS end_date VARCHAR(20) DEFAULT ''`)
+
 	// Migration: broadcast_schedules might still have old columns; safely drop them if they exist
 	// after we've migrated data to child tables
 	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS audio_id`)
