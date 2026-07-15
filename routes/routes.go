@@ -37,7 +37,6 @@ func Register() http.Handler {
 	mux.HandleFunc("/admin/schedules/create", handlers.RequireAuth(handlers.AdminSchedulesCreate))
 	mux.HandleFunc("/admin/schedules/edit/", handlers.RequireAuth(handlers.AdminSchedulesEdit))
 	mux.HandleFunc("/admin/schedules/delete/", handlers.RequireAuth(handlers.AdminSchedulesDelete))
-	mux.HandleFunc("/admin/schedules/sync/", handlers.RequireAuth(handlers.AdminSchedulesSync))
 	mux.HandleFunc("/admin/schedules/sync-all", handlers.RequireAuth(handlers.AdminSchedulesSyncAll))
 	mux.HandleFunc("/admin/schedules/sync-from", handlers.RequireAuth(handlers.AdminSchedulesSyncFrom))
 	mux.HandleFunc("/admin/logs", handlers.RequireAuth(handlers.AdminLogs))

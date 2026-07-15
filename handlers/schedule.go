@@ -272,26 +272,6 @@ func AdminSchedulesDelete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// AdminSchedulesSync handles syncing schedule to device
-func AdminSchedulesSync(w http.ResponseWriter, r *http.Request) {
-	idStr := strings.TrimPrefix(r.URL.Path, "/admin/schedules/sync/")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
-
-	err = services.SyncScheduleToDevice(id)
-	if err != nil {
-		setHXTriggerToast(w, "Sync failed: "+err.Error())
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	setHXTriggerToast(w, "Schedule synced to device successfully", true)
-	w.WriteHeader(http.StatusOK)
-}
-
 // AdminSchedulesSyncAll handles syncing all schedules to their respective devices
 func AdminSchedulesSyncAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
