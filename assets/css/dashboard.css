@@ -737,6 +737,13 @@
 .cursor-pointer { cursor: pointer; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+/* Date input — ensure native date picker works */
+input[type="date"].input-field {
+  min-height: 42px;
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+
 /* Select */
 select.input-field {
   appearance: none;
