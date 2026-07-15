@@ -389,8 +389,15 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 	endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
 
 	now := time.Now()
-	today := now.Format("2006-01-02") + "+" + timezoneOffset
-	futureDate := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
+	// Use schedule's StartDate/EndDate when set, otherwise fall back to defaults
+	startDateStr := now.Format("2006-01-02") + "+" + timezoneOffset
+	if s.StartDate != nil && *s.StartDate != "" {
+		startDateStr = *s.StartDate + "+" + timezoneOffset
+	}
+	stopDateStr := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
+	if s.EndDate != nil && *s.EndDate != "" {
+		stopDateStr = *s.EndDate + "+" + timezoneOffset
+	}
 
 	scheduleEntry := map[string]interface{}{
 		"beginTime": beginTime,
@@ -414,8 +421,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 	switch s.ScheduleType {
 	case "daily":
 		planScheme["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime": today,
-			"stopTime":  futureDate,
+			"startTime": startDateStr,
+			"stopTime":  stopDateStr,
 			"dailyScheduleList": []map[string]interface{}{
 				scheduleEntry,
 			},
@@ -426,8 +433,8 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 			dayOfWeek = *s.DayOfWeek
 		}
 		planScheme["weeklyScheduleInfo"] = map[string]interface{}{
-			"startTime": today,
-			"stopTime":  futureDate,
+			"startTime": startDateStr,
+			"stopTime":  stopDateStr,
 			"weeklyScheduleList": []map[string]interface{}{
 				{
 					"dayOfWeek":    dayOfWeek,
@@ -436,7 +443,7 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 			},
 		}
 	case "specific_date":
-		dateStr := today
+		dateStr := startDateStr
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
