@@ -24,11 +24,157 @@
                 <div class="form-row" style="display: flex; gap: 1rem;">
                     <div class="form-group" style="flex: 1;">
                         <label class="form-label">Start Date</label>
-                        <input type="date" name="start_date" class="input-field" value="{{if and .Data.Schedule .Data.Schedule.StartDate}}{{.Data.Schedule.StartDate}}{{end}}">
+                        <div class="custom-date-picker" x-data="{ 
+                            open: false, 
+                            value: '{{if and .Data.Schedule .Data.Schedule.StartDate}}{{.Data.Schedule.StartDate}}{{end}}',
+                            year: new Date().getFullYear(),
+                            month: new Date().getMonth(),
+                            get daysInMonth() {
+                                return new Date(this.year, this.month + 1, 0).getDate();
+                            },
+                            get firstDayOfMonth() {
+                                return new Date(this.year, this.month, 1).getDay();
+                            },
+                            get monthName() {
+                                return ['January','February','March','April','May','June','July','August','September','October','November','December'][this.month];
+                            },
+                            prevMonth() {
+                                this.month--;
+                                if (this.month < 0) { this.month = 11; this.year--; }
+                            },
+                            nextMonth() {
+                                this.month++;
+                                if (this.month > 11) { this.month = 0; this.year++; }
+                            },
+                            selectDate(day) {
+                                var m = String(this.month + 1).padStart(2, '0');
+                                var d = String(day).padStart(2, '0');
+                                this.value = this.year + '-' + m + '-' + d;
+                                this.open = false;
+                            },
+                            clearDate() {
+                                this.value = '';
+                                this.open = false;
+                            },
+                            init() {
+                                if (this.value) {
+                                    var parts = this.value.split('-');
+                                    if (parts.length === 3) {
+                                        this.year = parseInt(parts[0]);
+                                        this.month = parseInt(parts[1]) - 1;
+                                    }
+                                }
+                            }
+                        }">
+                            <input type="hidden" name="start_date" x-model="value">
+                            <div class="date-input-display" @click="open = !open" :class="{ 'has-value': value }">
+                                <span x-show="!value" style="color: var(--inkSubtle);">Select date</span>
+                                <span x-show="value" x-text="value"></span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: auto; flex-shrink: 0; opacity: 0.5;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div class="date-picker-dropdown" x-show="open" @click.away="open = false" x-cloak x-transition>
+                                <div class="date-picker-header">
+                                    <button type="button" class="date-picker-nav" @click="prevMonth()">&lsaquo;</button>
+                                    <span class="date-picker-title" x-text="monthName + ' ' + year"></span>
+                                    <button type="button" class="date-picker-nav" @click="nextMonth()">&rsaquo;</button>
+                                </div>
+                                <div class="date-picker-weekdays">
+                                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                                </div>
+                                <div class="date-picker-grid">
+                                    <template x-for="i in firstDayOfMonth" :key="'empty-' + i">
+                                        <span></span>
+                                    </template>
+                                    <template x-for="day in daysInMonth" :key="day">
+                                        <button type="button" class="date-picker-day" 
+                                            :class="{ 'selected': value === year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0') }"
+                                            @click="selectDate(day)" 
+                                            x-text="day">
+                                        </button>
+                                    </template>
+                                </div>
+                                <div class="date-picker-footer">
+                                    <button type="button" class="btn btn-sm btn-ghost" @click="clearDate()" x-show="value" style="font-size: 12px; color: var(--error);">Clear</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-group" style="flex: 1;">
                         <label class="form-label">End Date</label>
-                        <input type="date" name="end_date" class="input-field" value="{{if and .Data.Schedule .Data.Schedule.EndDate}}{{.Data.Schedule.EndDate}}{{end}}">
+                        <div class="custom-date-picker" x-data="{ 
+                            open: false, 
+                            value: '{{if and .Data.Schedule .Data.Schedule.EndDate}}{{.Data.Schedule.EndDate}}{{end}}',
+                            year: new Date().getFullYear(),
+                            month: new Date().getMonth(),
+                            get daysInMonth() {
+                                return new Date(this.year, this.month + 1, 0).getDate();
+                            },
+                            get firstDayOfMonth() {
+                                return new Date(this.year, this.month, 1).getDay();
+                            },
+                            get monthName() {
+                                return ['January','February','March','April','May','June','July','August','September','October','November','December'][this.month];
+                            },
+                            prevMonth() {
+                                this.month--;
+                                if (this.month < 0) { this.month = 11; this.year--; }
+                            },
+                            nextMonth() {
+                                this.month++;
+                                if (this.month > 11) { this.month = 0; this.year++; }
+                            },
+                            selectDate(day) {
+                                var m = String(this.month + 1).padStart(2, '0');
+                                var d = String(day).padStart(2, '0');
+                                this.value = this.year + '-' + m + '-' + d;
+                                this.open = false;
+                            },
+                            clearDate() {
+                                this.value = '';
+                                this.open = false;
+                            },
+                            init() {
+                                if (this.value) {
+                                    var parts = this.value.split('-');
+                                    if (parts.length === 3) {
+                                        this.year = parseInt(parts[0]);
+                                        this.month = parseInt(parts[1]) - 1;
+                                    }
+                                }
+                            }
+                        }">
+                            <input type="hidden" name="end_date" x-model="value">
+                            <div class="date-input-display" @click="open = !open" :class="{ 'has-value': value }">
+                                <span x-show="!value" style="color: var(--inkSubtle);">Select date</span>
+                                <span x-show="value" x-text="value"></span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left: auto; flex-shrink: 0; opacity: 0.5;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                            </div>
+                            <div class="date-picker-dropdown" x-show="open" @click.away="open = false" x-cloak x-transition>
+                                <div class="date-picker-header">
+                                    <button type="button" class="date-picker-nav" @click="prevMonth()">&lsaquo;</button>
+                                    <span class="date-picker-title" x-text="monthName + ' ' + year"></span>
+                                    <button type="button" class="date-picker-nav" @click="nextMonth()">&rsaquo;</button>
+                                </div>
+                                <div class="date-picker-weekdays">
+                                    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+                                </div>
+                                <div class="date-picker-grid">
+                                    <template x-for="i in firstDayOfMonth" :key="'empty-' + i">
+                                        <span></span>
+                                    </template>
+                                    <template x-for="day in daysInMonth" :key="day">
+                                        <button type="button" class="date-picker-day" 
+                                            :class="{ 'selected': value === year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0') }"
+                                            @click="selectDate(day)" 
+                                            x-text="day">
+                                        </button>
+                                    </template>
+                                </div>
+                                <div class="date-picker-footer">
+                                    <button type="button" class="btn btn-sm btn-ghost" @click="clearDate()" x-show="value" style="font-size: 12px; color: var(--error);">Clear</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

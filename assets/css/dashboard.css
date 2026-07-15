@@ -737,11 +737,164 @@
 .cursor-pointer { cursor: pointer; }
 .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* Date input — ensure native date picker works */
-input[type="date"].input-field {
+/* Custom Date Picker (Alpine.js) */
+.custom-date-picker {
+  position: relative;
+  width: 100%;
+}
+
+.date-input-display {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--bordLight);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   min-height: 42px;
-  appearance: auto;
-  -webkit-appearance: auto;
+}
+
+.date-input-display:hover {
+  border-color: var(--bord);
+}
+
+.date-input-display:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(13,115,119,0.1);
+}
+
+.date-input-display.has-value {
+  color: var(--ink);
+}
+
+.date-picker-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--bordLight);
+  border-radius: 10px;
+  box-shadow: var(--shadow2);
+  padding: 12px;
+  width: 280px;
+}
+
+.date-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.date-picker-nav {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--inkMuted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.date-picker-nav:hover {
+  background: var(--bgSection);
+  color: var(--ink);
+}
+
+.date-picker-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.date-picker-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.date-picker-weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--inkSubtle);
+  text-transform: uppercase;
+  padding: 4px 0;
+}
+
+.date-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.date-picker-day {
+  width: 100%;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.date-picker-day:hover {
+  background: var(--bgSection);
+  color: var(--ink);
+}
+
+.date-picker-day.selected {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+}
+
+.date-picker-day.selected:hover {
+  background: var(--accentHover);
+}
+
+.date-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--bordLight);
+}
+
+[data-theme="dark"] .date-input-display {
+  background: #0f0f0f;
+  border-color: var(--bordLight);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .date-picker-dropdown {
+  background: #1a1a1a;
+  border-color: var(--bordLight);
+}
+
+[data-theme="dark"] .date-picker-day:hover {
+  background: var(--bgSection);
+}
+
+[data-theme="dark"] .date-picker-day.selected {
+  background: var(--accent);
+  color: white;
 }
 
 /* Select */
