@@ -230,6 +230,9 @@ func createTables() {
 	DB.Exec(`ALTER TABLE broadcast_schedules ADD COLUMN IF NOT EXISTS start_date VARCHAR(20) DEFAULT ''`)
 	DB.Exec(`ALTER TABLE broadcast_schedules ADD COLUMN IF NOT EXISTS end_date VARCHAR(20) DEFAULT ''`)
 
+	// Migration: add source column to broadcast_schedules for tracking generated schedules
+	DB.Exec(`ALTER TABLE broadcast_schedules ADD COLUMN IF NOT EXISTS source VARCHAR(50) DEFAULT ''`)
+
 	// Migration: broadcast_schedules might still have old columns; safely drop them if they exist
 	// after we've migrated data to child tables
 	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS audio_id`)

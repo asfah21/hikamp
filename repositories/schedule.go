@@ -7,7 +7,7 @@ import (
 
 // GetAllSchedules retrieves all broadcast schedules with their entries and devices
 func GetAllSchedules() ([]models.BroadcastSchedule, error) {
-	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, created_at, updated_at 
+	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source, created_at, updated_at 
               FROM broadcast_schedules ORDER BY id DESC`
 	rows, err := database.DB.Query(query)
 	if err != nil {
@@ -18,7 +18,7 @@ func GetAllSchedules() ([]models.BroadcastSchedule, error) {
 	var schedules []models.BroadcastSchedule
 	for rows.Next() {
 		var s models.BroadcastSchedule
-		err := rows.Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.CreatedAt, &s.UpdatedAt)
+		err := rows.Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -49,9 +49,9 @@ func GetAllSchedules() ([]models.BroadcastSchedule, error) {
 // GetScheduleByID retrieves a schedule by ID with entries and devices
 func GetScheduleByID(id int) (*models.BroadcastSchedule, error) {
 	s := &models.BroadcastSchedule{}
-	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, created_at, updated_at 
+	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source, created_at, updated_at 
               FROM broadcast_schedules WHERE id = $1`
-	err := database.DB.QueryRow(query, id).Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.CreatedAt, &s.UpdatedAt)
+	err := database.DB.QueryRow(query, id).Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -124,9 +124,9 @@ func CreateSchedule(s *models.BroadcastSchedule) (int, error) {
 	defer tx.Rollback()
 
 	var id int
-	query := `INSERT INTO broadcast_schedules (name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
-	err = tx.QueryRow(query, s.Name, s.ScheduleType, s.Enabled, s.DayOfWeek, s.SpecificDate, s.StartDate, s.EndDate).Scan(&id)
+	query := `INSERT INTO broadcast_schedules (name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source) 
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
+	err = tx.QueryRow(query, s.Name, s.ScheduleType, s.Enabled, s.DayOfWeek, s.SpecificDate, s.StartDate, s.EndDate, s.Source).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -200,6 +200,13 @@ func UpdateSchedule(s *models.BroadcastSchedule) error {
 // DeleteSchedule deletes a schedule by ID (cascades to entries and devices)
 func DeleteSchedule(id int) error {
 	_, err := database.DB.Exec("DELETE FROM broadcast_schedules WHERE id = $1", id)
+	return err
+}
+
+// DeleteSchedulesBySource deletes all schedules with a specific source value.
+// Used to clean up auto-generated prayer schedules before regeneration.
+func DeleteSchedulesBySource(source string) error {
+	_, err := database.DB.Exec("DELETE FROM broadcast_schedules WHERE source = $1", source)
 	return err
 }
 

@@ -27,6 +27,7 @@ type BroadcastSchedule struct {
 	EndDate      *string          `json:"end_date"`      // optional date range end
 	DayOfWeek    *int             `json:"day_of_week"`   // 1=Monday ... 7=Sunday (for weekly)
 	SpecificDate *string          `json:"specific_date"` // for specific_date type
+	Source       string           `json:"source"`        // "" for manual, "prayer" for auto-generated
 	Entries      []ScheduleEntry  `json:"entries"`
 	Devices      []ScheduleDevice `json:"devices"`
 	CreatedAt    string           `json:"created_at"`

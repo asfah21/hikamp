@@ -88,11 +88,11 @@ func SavePrayerBroadcastConfig(c *models.PrayerBroadcastConfig) error {
 	return repositories.SavePrayerBroadcastConfig(c)
 }
 
-// CreatePrayerSchedules creates daily broadcast schedules in the database
-// (one per prayer time: Fajr, Dhuhr, Asr, Maghrib, Isha).
-// Each schedule uses schedule_type "daily" so it repeats every day.
-// Saves to the broadcast_schedules table (admin/schedules) instead of directly
-// sending to the Hikvision device. The user can then review and sync manually.
+// CreatePrayerSchedules creates a single weekly broadcast schedule with all prayer entries
+// (Fajr, Dhuhr, Asr, Maghrib, Isha) for today + the next 6 days (7 days total).
+// The schedule uses schedule_type "weekly" with up to 35 entries (5 prayers × 7 days).
+// Before creating, it deletes any existing schedule with source = "prayer" to avoid duplicates.
+// Saves to the broadcast_schedules table (admin/schedules) for review and manual sync.
 // Returns a list of human-readable warnings/messages for the UI.
 func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 	configs, err := repositories.GetPrayerBroadcastConfigs()
@@ -100,126 +100,223 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 		return []string{fmt.Sprintf("Failed to load broadcast configs: %v", err)}
 	}
 
-	now := time.Now()
 	loc, err := time.LoadLocation(location.Timezone)
 	if err != nil {
 		loc = time.UTC
 	}
-	now = now.In(loc)
+	now := time.Now().In(loc)
 
 	startDate := now.Format("2006-01-02")
-	endDate := now.AddDate(0, 0, days-1).Format("2006-01-02")
 
-	prayerTimes, err := repositories.GetPrayerTimes(startDate, endDate)
+	// Load prayer times for the full range (today + next 6 days = 7 days for weekly)
+	prayerDaysCount := 7
+	if days < prayerDaysCount {
+		prayerDaysCount = days
+	}
+	prayerEndDate := now.AddDate(0, 0, prayerDaysCount-1).Format("2006-01-02")
+
+	prayerTimes, err := repositories.GetPrayerTimes(startDate, prayerEndDate)
 	if err != nil {
-		log.Printf("[PRAYER SCHEDULE] No prayer times found for range %s to %s: %v", startDate, endDate, err)
+		log.Printf("[PRAYER SCHEDULE] No prayer times found for range %s to %s: %v", startDate, prayerEndDate, err)
 		return []string{"No prayer times found. Please generate prayer times first (Prayer Times > Generate)."}
 	}
 
-	// Group prayer times by prayer name to get the first occurrence
-	// (all days have the same times, just use today's)
-	todayTimes := make(map[string]string)
+	// Group prayer times by date for easy lookup
+	prayerTimesByDate := make(map[string]map[string]string)
 	for _, pt := range prayerTimes {
-		if pt.Date == startDate {
-			todayTimes["fajr"] = pt.Fajr
-			todayTimes["dhuhr"] = pt.Dhuhr
-			todayTimes["asr"] = pt.Asr
-			todayTimes["maghrib"] = pt.Maghrib
-			todayTimes["isha"] = pt.Isha
-			break
+		prayerTimesByDate[pt.Date] = map[string]string{
+			"fajr":    pt.Fajr,
+			"dhuhr":   pt.Dhuhr,
+			"asr":     pt.Asr,
+			"maghrib": pt.Maghrib,
+			"isha":    pt.Isha,
 		}
 	}
 
-	// If today's times not found, use the first available day
-	if len(todayTimes) == 0 && len(prayerTimes) > 0 {
-		pt := prayerTimes[0]
-		todayTimes["fajr"] = pt.Fajr
-		todayTimes["dhuhr"] = pt.Dhuhr
-		todayTimes["asr"] = pt.Asr
-		todayTimes["maghrib"] = pt.Maghrib
-		todayTimes["isha"] = pt.Isha
+	// Collect all enabled configs with valid audio/device
+	type validConfig struct {
+		config           models.PrayerBroadcastConfig
+		prayerName       string
+		audioDurationSec int
 	}
+	var validConfigs []validConfig
+	hasEnabled := false
 
-	// If still no prayer times, just log and return (configs are saved)
-	if len(todayTimes) == 0 {
-		log.Printf("[PRAYER SCHEDULE] No prayer times available. Generate prayer times first.")
-		return []string{"No prayer times available. Please generate prayer times first (Prayer Times > Generate)."}
-	}
-
-	var messages []string
-	successCount := 0
-	skipCount := 0
-
-	// For each enabled config, create a daily schedule in the database
 	for _, cfg := range configs {
 		prayerName := models.PrayerNames[cfg.Prayer]
 
 		if !cfg.Enabled {
-			skipCount++
 			continue
 		}
+		hasEnabled = true
 		if !cfg.AudioID.Valid {
-			messages = append(messages, fmt.Sprintf("%s: No audio selected.", prayerName))
 			continue
 		}
 		if !cfg.DeviceID.Valid {
-			messages = append(messages, fmt.Sprintf("%s: No device selected.", prayerName))
 			continue
-		}
-
-		prayerTime := todayTimes[cfg.Prayer]
-		if prayerTime == "" {
-			messages = append(messages, fmt.Sprintf("%s: Prayer time not found.", prayerName))
-			continue
-		}
-
-		// Ensure prayer time is in HH:MM:SS format (pad :00 if only HH:MM)
-		if strings.Count(prayerTime, ":") == 1 {
-			prayerTime = prayerTime + ":00"
 		}
 
 		// Lookup audio file to get its duration in seconds
 		audioID := int(cfg.AudioID.Int64)
 		audioFile, err := repositories.GetAudioFileByID(audioID)
-		audioDurationSec := 0
-		if err == nil && audioFile != nil {
+		audioDurationSec := 300 // default 5 minutes
+		if err == nil && audioFile != nil && audioFile.Duration > 0 {
 			audioDurationSec = audioFile.Duration
 		}
-		if audioDurationSec <= 0 {
-			audioDurationSec = 300 // default 5 minutes = 300 seconds
+
+		validConfigs = append(validConfigs, validConfig{
+			config:           cfg,
+			prayerName:       prayerName,
+			audioDurationSec: audioDurationSec,
+		})
+	}
+
+	if !hasEnabled {
+		return []string{"No prayer broadcast settings are enabled. Enable at least one prayer first."}
+	}
+	if len(validConfigs) == 0 {
+		return []string{"No valid broadcast configs found. Make sure each enabled prayer has an audio file and device selected."}
+	}
+
+	// Detect which devices are used across all configs
+	deviceIDs := make(map[int]bool)
+	for _, vc := range validConfigs {
+		deviceIDs[int(vc.config.DeviceID.Int64)] = true
+	}
+
+	var messages []string
+	successCount := 0
+
+	// For each device, delete old prayer schedule and create a new one
+	for deviceID := range deviceIDs {
+		// Delete existing prayer-generated schedule for this device
+		if err := repositories.DeleteSchedulesBySource("prayer"); err != nil {
+			log.Printf("[PRAYER SCHEDULE] Failed to delete old prayer schedules: %v", err)
 		}
 
-		// Calculate end time: prayer time + audio duration (in seconds)
-		endTime := prayerTime
-		if parts := strings.Split(prayerTime, ":"); len(parts) >= 2 {
-			h, _ := strconv.Atoi(parts[0])
-			m, _ := strconv.Atoi(parts[1])
-			s := 0
-			if len(parts) >= 3 {
-				s, _ = strconv.Atoi(parts[2])
+		// Build all entries grouped by day of week (1=Monday ... 7=Sunday)
+		type dayEntry struct {
+			dayOfWeek int
+			beginTime string
+			endTime   string
+			audioID   int
+			volume    int
+		}
+
+		var allEntries []dayEntry
+
+		// For each day in our prayer times range, add entries for all valid configs
+		for dayOffset := 0; dayOffset < prayerDaysCount; dayOffset++ {
+			date := now.AddDate(0, 0, dayOffset).Format("2006-01-02")
+			dayTimes, ok := prayerTimesByDate[date]
+			if !ok {
+				continue
 			}
-			totalSec := h*3600 + m*60 + s + audioDurationSec
-			endH := (totalSec / 3600) % 24
-			endM := (totalSec % 3600) / 60
-			endS := totalSec % 60
-			endTime = fmt.Sprintf("%02d:%02d:%02d", endH, endM, endS)
+
+			// Calculate day of week (1=Monday ... 7=Sunday)
+			dayOfWeek := int(now.AddDate(0, 0, dayOffset).Weekday())
+			if dayOfWeek == 0 {
+				dayOfWeek = 7 // Go's Sunday=0, we need Sunday=7
+			}
+
+			for _, vc := range validConfigs {
+				if int(vc.config.DeviceID.Int64) != deviceID {
+					continue
+				}
+
+				prayerTime := dayTimes[vc.config.Prayer]
+				if prayerTime == "" {
+					continue
+				}
+
+				// Ensure prayer time is in HH:MM:SS format
+				if strings.Count(prayerTime, ":") == 1 {
+					prayerTime = prayerTime + ":00"
+				}
+
+				// Calculate end time: prayer time + audio duration
+				endTime := prayerTime
+				if parts := strings.Split(prayerTime, ":"); len(parts) >= 2 {
+					h, _ := strconv.Atoi(parts[0])
+					m, _ := strconv.Atoi(parts[1])
+					s := 0
+					if len(parts) >= 3 {
+						s, _ = strconv.Atoi(parts[2])
+					}
+					totalSec := h*3600 + m*60 + s + vc.audioDurationSec
+					endH := (totalSec / 3600) % 24
+					endM := (totalSec % 3600) / 60
+					endS := totalSec % 60
+					endTime = fmt.Sprintf("%02d:%02d:%02d", endH, endM, endS)
+				}
+
+				allEntries = append(allEntries, dayEntry{
+					dayOfWeek: dayOfWeek,
+					beginTime: prayerTime,
+					endTime:   endTime,
+					audioID:   int(vc.config.AudioID.Int64),
+					volume:    vc.config.Volume,
+				})
+			}
 		}
 
-		deviceID := int(cfg.DeviceID.Int64)
+		if len(allEntries) == 0 {
+			messages = append(messages, fmt.Sprintf("Device %d: No prayer times available for the selected days.", deviceID))
+			continue
+		}
 
-		// Create schedule in database (daily type = repeats every day)
-		schedule := &models.BroadcastSchedule{
-			Name:         "Prayer: " + prayerName,
-			ScheduleType: "daily",
-			Enabled:      true,
-			Entries: []models.ScheduleEntry{
-				{
-					AudioID:   audioID,
-					BeginTime: prayerTime,
-					EndTime:   endTime,
-					Volume:    cfg.Volume,
+		// Group entries by dayOfWeek for the weekly schedule format
+		weeklyScheduleMap := make(map[int][]map[string]interface{})
+		for _, e := range allEntries {
+			entryMap := map[string]interface{}{
+				"beginTime": e.beginTime,
+				"endTime":   e.endTime,
+				"playMode":  "order",
+				"operation": map[string]interface{}{
+					"audioSource":   "customAudio",
+					"customAudioID": []int{e.audioID},
+					"audioLevel":    5,
+					"audioVolume":   e.volume,
 				},
-			},
+			}
+			weeklyScheduleMap[e.dayOfWeek] = append(weeklyScheduleMap[e.dayOfWeek], entryMap)
+		}
+
+		// Build weeklyScheduleList in day order
+		type weekEntry struct {
+			dayOfWeek    int
+			scheduleList []map[string]interface{}
+		}
+		var weeklyList []weekEntry
+		for d := 1; d <= 7; d++ {
+			if list, ok := weeklyScheduleMap[d]; ok {
+				weeklyList = append(weeklyList, weekEntry{dayOfWeek: d, scheduleList: list})
+			}
+		}
+
+		// Build schedule entries (for local DB storage)
+		var dbEntries []models.ScheduleEntry
+		for _, e := range allEntries {
+			dbEntries = append(dbEntries, models.ScheduleEntry{
+				AudioID:   e.audioID,
+				BeginTime: e.beginTime,
+				EndTime:   e.endTime,
+				Volume:    e.volume,
+			})
+		}
+
+		scheduleStart := now.Format("2006-01-02")
+		scheduleEnd := now.AddDate(0, 0, prayerDaysCount-1).Format("2006-01-02")
+
+		// Create single weekly schedule with all prayer entries
+		schedule := &models.BroadcastSchedule{
+			Name:         "Prayer Broadcasts",
+			ScheduleType: "weekly",
+			Enabled:      true,
+			Source:       "prayer",
+			StartDate:    &scheduleStart,
+			EndDate:      &scheduleEnd,
+			Entries:      dbEntries,
 			Devices: []models.ScheduleDevice{
 				{
 					DeviceID: deviceID,
@@ -227,21 +324,25 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 			},
 		}
 
+		// Also store day_of_week mapping in the schedule metadata
+		// The weekly schedule stores all days implicitly; we use the first available day for DayOfWeek
+		if len(weeklyList) > 0 {
+			firstDay := weeklyList[0].dayOfWeek
+			schedule.DayOfWeek = &firstDay
+		}
+
 		_, err = repositories.CreateSchedule(schedule)
 		if err != nil {
-			messages = append(messages, fmt.Sprintf("%s: Failed to save schedule: %v", prayerName, err))
+			messages = append(messages, fmt.Sprintf("Device %d: Failed to save schedule: %v", deviceID, err))
 			continue
 		}
 
 		successCount++
-		log.Printf("[PRAYER SCHEDULE] Created daily schedule for %s (device ID: %d, audio ID: %d)", prayerName, deviceID, audioID)
+		log.Printf("[PRAYER SCHEDULE] Created weekly schedule for device ID %d with %d entries (%d days)", deviceID, len(allEntries), prayerDaysCount)
 	}
 
 	if successCount > 0 {
-		messages = append(messages, fmt.Sprintf("%d prayer schedule(s) saved to database. Go to Schedules menu to review and sync.", successCount))
-	}
-	if skipCount > 0 {
-		messages = append(messages, fmt.Sprintf("%d prayer(s) skipped (not enabled).", skipCount))
+		messages = append(messages, fmt.Sprintf("Prayer schedule updated with %d entries across %d device(s). Go to Schedules menu to review and sync.", len(validConfigs)*prayerDaysCount, len(deviceIDs)))
 	}
 
 	return messages
