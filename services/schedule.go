@@ -432,7 +432,7 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 		if s.DayOfWeek != nil {
 			dayOfWeek = *s.DayOfWeek
 		}
-		planScheme["weeklyScheduleInfo"] = map[string]interface{}{
+		planScheme["weklyScheduleInfo"] = map[string]interface{}{
 			"startTime": startDateStr,
 			"stopTime":  stopDateStr,
 			"weeklyScheduleList": []map[string]interface{}{
