@@ -294,14 +294,16 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 			}
 		}
 
-		// Build schedule entries (for local DB storage)
+		// Build schedule entries (for local DB storage) with day_of_week per entry
 		var dbEntries []models.ScheduleEntry
 		for _, e := range allEntries {
+			dow := e.dayOfWeek
 			dbEntries = append(dbEntries, models.ScheduleEntry{
 				AudioID:   e.audioID,
 				BeginTime: e.beginTime,
 				EndTime:   e.endTime,
 				Volume:    e.volume,
+				DayOfWeek: &dow,
 			})
 		}
 
@@ -322,13 +324,6 @@ func CreatePrayerSchedules(location *models.PrayerLocation, days int) []string {
 					DeviceID: deviceID,
 				},
 			},
-		}
-
-		// Also store day_of_week mapping in the schedule metadata
-		// The weekly schedule stores all days implicitly; we use the first available day for DayOfWeek
-		if len(weeklyList) > 0 {
-			firstDay := weeklyList[0].dayOfWeek
-			schedule.DayOfWeek = &firstDay
 		}
 
 		_, err = repositories.CreateSchedule(schedule)

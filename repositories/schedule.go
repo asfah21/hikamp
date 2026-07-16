@@ -7,7 +7,7 @@ import (
 
 // GetAllSchedules retrieves all broadcast schedules with their entries and devices
 func GetAllSchedules() ([]models.BroadcastSchedule, error) {
-	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source, created_at, updated_at 
+	query := `SELECT id, name, schedule_type, enabled, specific_date, start_date, end_date, source, created_at, updated_at 
               FROM broadcast_schedules ORDER BY id DESC`
 	rows, err := database.DB.Query(query)
 	if err != nil {
@@ -18,7 +18,7 @@ func GetAllSchedules() ([]models.BroadcastSchedule, error) {
 	var schedules []models.BroadcastSchedule
 	for rows.Next() {
 		var s models.BroadcastSchedule
-		err := rows.Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
+		err := rows.Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -49,9 +49,9 @@ func GetAllSchedules() ([]models.BroadcastSchedule, error) {
 // GetScheduleByID retrieves a schedule by ID with entries and devices
 func GetScheduleByID(id int) (*models.BroadcastSchedule, error) {
 	s := &models.BroadcastSchedule{}
-	query := `SELECT id, name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source, created_at, updated_at 
+	query := `SELECT id, name, schedule_type, enabled, specific_date, start_date, end_date, source, created_at, updated_at 
               FROM broadcast_schedules WHERE id = $1`
-	err := database.DB.QueryRow(query, id).Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.DayOfWeek, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
+	err := database.DB.QueryRow(query, id).Scan(&s.ID, &s.Name, &s.ScheduleType, &s.Enabled, &s.SpecificDate, &s.StartDate, &s.EndDate, &s.Source, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +73,7 @@ func GetScheduleByID(id int) (*models.BroadcastSchedule, error) {
 
 // GetEntriesBySchedule retrieves all entries for a schedule
 func GetEntriesBySchedule(scheduleID int) ([]models.ScheduleEntry, error) {
-	query := `SELECT id, schedule_id, audio_id, begin_time, end_time, volume
+	query := `SELECT id, schedule_id, audio_id, begin_time, end_time, volume, day_of_week
 	          FROM schedule_entries WHERE schedule_id = $1 ORDER BY id`
 	rows, err := database.DB.Query(query, scheduleID)
 	if err != nil {
@@ -84,7 +84,7 @@ func GetEntriesBySchedule(scheduleID int) ([]models.ScheduleEntry, error) {
 	var entries []models.ScheduleEntry
 	for rows.Next() {
 		var e models.ScheduleEntry
-		err := rows.Scan(&e.ID, &e.ScheduleID, &e.AudioID, &e.BeginTime, &e.EndTime, &e.Volume)
+		err := rows.Scan(&e.ID, &e.ScheduleID, &e.AudioID, &e.BeginTime, &e.EndTime, &e.Volume, &e.DayOfWeek)
 		if err != nil {
 			return nil, err
 		}
@@ -124,17 +124,17 @@ func CreateSchedule(s *models.BroadcastSchedule) (int, error) {
 	defer tx.Rollback()
 
 	var id int
-	query := `INSERT INTO broadcast_schedules (name, schedule_type, enabled, day_of_week, specific_date, start_date, end_date, source) 
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`
-	err = tx.QueryRow(query, s.Name, s.ScheduleType, s.Enabled, s.DayOfWeek, s.SpecificDate, s.StartDate, s.EndDate, s.Source).Scan(&id)
+	query := `INSERT INTO broadcast_schedules (name, schedule_type, enabled, specific_date, start_date, end_date, source) 
+              VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`
+	err = tx.QueryRow(query, s.Name, s.ScheduleType, s.Enabled, s.SpecificDate, s.StartDate, s.EndDate, s.Source).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
 
 	// Insert entries
 	for _, entry := range s.Entries {
-		_, err = tx.Exec(`INSERT INTO schedule_entries (schedule_id, audio_id, begin_time, end_time, volume) 
-		                  VALUES ($1, $2, $3, $4, $5)`, id, entry.AudioID, entry.BeginTime, entry.EndTime, entry.Volume)
+		_, err = tx.Exec(`INSERT INTO schedule_entries (schedule_id, audio_id, begin_time, end_time, volume, day_of_week) 
+		                  VALUES ($1, $2, $3, $4, $5, $6)`, id, entry.AudioID, entry.BeginTime, entry.EndTime, entry.Volume, entry.DayOfWeek)
 		if err != nil {
 			return 0, err
 		}
@@ -163,8 +163,8 @@ func UpdateSchedule(s *models.BroadcastSchedule) error {
 	}
 	defer tx.Rollback()
 
-	query := `UPDATE broadcast_schedules SET name=$1, schedule_type=$2, enabled=$3, day_of_week=$4, specific_date=$5, start_date=$6, end_date=$7, updated_at=NOW() WHERE id=$8`
-	_, err = tx.Exec(query, s.Name, s.ScheduleType, s.Enabled, s.DayOfWeek, s.SpecificDate, s.StartDate, s.EndDate, s.ID)
+	query := `UPDATE broadcast_schedules SET name=$1, schedule_type=$2, enabled=$3, specific_date=$4, start_date=$5, end_date=$6, updated_at=NOW() WHERE id=$7`
+	_, err = tx.Exec(query, s.Name, s.ScheduleType, s.Enabled, s.SpecificDate, s.StartDate, s.EndDate, s.ID)
 	if err != nil {
 		return err
 	}
@@ -175,8 +175,8 @@ func UpdateSchedule(s *models.BroadcastSchedule) error {
 		return err
 	}
 	for _, entry := range s.Entries {
-		_, err = tx.Exec(`INSERT INTO schedule_entries (schedule_id, audio_id, begin_time, end_time, volume) 
-		                  VALUES ($1, $2, $3, $4, $5)`, s.ID, entry.AudioID, entry.BeginTime, entry.EndTime, entry.Volume)
+		_, err = tx.Exec(`INSERT INTO schedule_entries (schedule_id, audio_id, begin_time, end_time, volume, day_of_week) 
+		                  VALUES ($1, $2, $3, $4, $5, $6)`, s.ID, entry.AudioID, entry.BeginTime, entry.EndTime, entry.Volume, entry.DayOfWeek)
 		if err != nil {
 			return err
 		}

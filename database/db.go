@@ -241,6 +241,21 @@ func createTables() {
 	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS end_time`)
 	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS volume`)
 
+	// Migration: add day_of_week column to schedule_entries (moved from broadcast_schedules)
+	DB.Exec(`ALTER TABLE schedule_entries ADD COLUMN IF NOT EXISTS day_of_week INTEGER`)
+
+	// Migration: drop day_of_week from broadcast_schedules (now per-entry)
+	DB.Exec(`ALTER TABLE broadcast_schedules DROP COLUMN IF EXISTS day_of_week`)
+
+	// Migrate existing data: if broadcast_schedules had day_of_week, propagate it to entries
+	DB.Exec(`
+		UPDATE schedule_entries se
+		SET day_of_week = bs.day_of_week
+		FROM broadcast_schedules bs
+		WHERE se.schedule_id = bs.id
+		AND se.day_of_week IS NULL
+	`)
+
 	log.Println("Database tables initialized")
 }
 

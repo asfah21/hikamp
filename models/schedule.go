@@ -8,6 +8,7 @@ type ScheduleEntry struct {
 	BeginTime  string `json:"begin_time"`
 	EndTime    string `json:"end_time"`
 	Volume     int    `json:"volume"`
+	DayOfWeek  *int   `json:"day_of_week"` // 1=Monday ... 7=Sunday (for weekly schedules, nil = daily)
 }
 
 // ScheduleDevice represents a device target for a schedule
@@ -25,7 +26,6 @@ type BroadcastSchedule struct {
 	Enabled      bool             `json:"enabled"`
 	StartDate    *string          `json:"start_date"`    // optional date range start
 	EndDate      *string          `json:"end_date"`      // optional date range end
-	DayOfWeek    *int             `json:"day_of_week"`   // 1=Monday ... 7=Sunday (for weekly)
 	SpecificDate *string          `json:"specific_date"` // for specific_date type
 	Source       string           `json:"source"`        // "" for manual, "prayer" for auto-generated
 	Entries      []ScheduleEntry  `json:"entries"`

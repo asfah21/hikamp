@@ -37,8 +37,9 @@ func DeleteSchedule(id int) error {
 	return repositories.DeleteSchedule(id)
 }
 
-// getStablePlanSchemeID generates a stable, unique planSchemeID for a schedule+entry combination.
-func getStablePlanSchemeID(s *models.BroadcastSchedule, entryIdx int) string {
+// getStablePlanSchemeID generates a stable, unique planSchemeID for a schedule.
+// Uses a fixed prefix + schedule ID + sanitized name so the ID is deterministic.
+func getStablePlanSchemeID(s *models.BroadcastSchedule) string {
 	safeName := strings.Map(func(r rune) rune {
 		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' || r == ' ' {
 			return r
@@ -50,16 +51,13 @@ func getStablePlanSchemeID(s *models.BroadcastSchedule, entryIdx int) string {
 	if s.ID > 0 {
 		base = fmt.Sprintf("sch_%d_%s", s.ID, safeName)
 	}
-	if entryIdx > 0 {
-		base = fmt.Sprintf("%s_e%d", base, entryIdx)
-	}
 	return base
 }
 
 // SyncAllSchedulesToDevice syncs all local schedules to their respective devices.
-// Aggregates ALL entries from ALL schedules per-device, then sends them in a single
-// AddPlanScheme request per device. This avoids the destructive overwrite issue where
-// sending per-schedule would erase previously synced schedules.
+// Each schedule becomes ONE planScheme on the device, with ALL its entries grouped
+// by day_of_week in the weeklyScheduleList (7 days max). This matches how Hikvision's
+// own web UI (BroadcastPlan component) handles weekly schedules.
 func SyncAllSchedulesToDevice() (int, int, error) {
 	schedules, err := repositories.GetAllSchedules()
 	if err != nil {
@@ -74,6 +72,7 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 	}
 
 	// Build per-device scheme lists from ALL enabled schedules
+	// Each schedule = ONE planScheme, not one per entry!
 	deviceSchemes := map[int][]map[string]interface{}{}
 	scheduleNames := map[int]string{} // deviceID -> schedule names for logging
 
@@ -91,33 +90,17 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 			continue
 		}
 
-		for _, dev := range schedule.Devices {
-			for idx, entry := range schedule.Entries {
-				if entry.BeginTime == "" || entry.EndTime == "" {
-					log.Printf("[SYNC ALL] Skipping entry %d of schedule '%s': begin/end time empty", idx, schedule.Name)
-					continue
-				}
+		// Build ONE planScheme for this schedule (containing ALL entries grouped by day)
+		planSchemeID := getStablePlanSchemeID(&schedule)
+		schemePayload := buildHikvisionSchedulePayload(&schedule, timezoneOffset, planSchemeID)
 
-				audioFile, err := repositories.GetAudioFileByID(entry.AudioID)
-				if err != nil {
-					log.Printf("[SYNC ALL] Skipping entry %d of '%s': audio file not found: %v", idx, schedule.Name, err)
-					continue
-				}
-				if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
-					log.Printf("[SYNC ALL] Skipping entry %d of '%s': audio '%s' has no Hikvision audio ID", idx, schedule.Name, audioFile.Name)
-					continue
-				}
-
-				planSchemeID := getStablePlanSchemeID(&schedule, idx)
-				schemePayload := buildHikvisionSchedulePayload(&schedule, &entry, timezoneOffset, planSchemeID, *audioFile.HikvisionAudioID)
-
-				if list, ok := schemePayload["broadcastPlanSchemeList"].([]map[string]interface{}); ok && len(list) > 0 {
-					deviceSchemes[dev.DeviceID] = append(deviceSchemes[dev.DeviceID], list[0])
-					if scheduleNames[dev.DeviceID] == "" {
-						scheduleNames[dev.DeviceID] = schedule.Name
-					} else {
-						scheduleNames[dev.DeviceID] += ", " + schedule.Name
-					}
+		if list, ok := schemePayload["broadcastPlanSchemeList"].([]map[string]interface{}); ok && len(list) > 0 {
+			for _, dev := range schedule.Devices {
+				deviceSchemes[dev.DeviceID] = append(deviceSchemes[dev.DeviceID], list[0])
+				if scheduleNames[dev.DeviceID] == "" {
+					scheduleNames[dev.DeviceID] = schedule.Name
+				} else {
+					scheduleNames[dev.DeviceID] += ", " + schedule.Name
 				}
 			}
 		}
@@ -184,7 +167,7 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 		}
 
 		// Upload ALL schemes from ALL schedules in ONE AddPlanScheme call
-		log.Printf("[SYNC ALL] Uploading %d entries for schedules [%s] to device '%s'",
+		log.Printf("[SYNC ALL] Uploading %d schedule(s) [%s] to device '%s'",
 			len(schemes), scheduleNames[deviceID], device.Name)
 
 		addPayload := map[string]interface{}{
@@ -198,19 +181,20 @@ func SyncAllSchedulesToDevice() (int, int, error) {
 		}
 		err = client.CreateSchedule(addPayload)
 		if err != nil {
-			log.Printf("[SYNC ALL] Failed to upload %d entries to device '%s': %v", len(schemes), device.Name, err)
+			log.Printf("[SYNC ALL] Failed to upload %d schedule(s) to device '%s': %v", len(schemes), device.Name, err)
 			fail += len(schemes)
 			lastErr = err
 			continue
 		}
 		success += len(schemes)
-		log.Printf("[SYNC ALL] Synced %d entries to device '%s' (schedules: %s)", len(schemes), device.Name, scheduleNames[deviceID])
+		log.Printf("[SYNC ALL] Synced %d schedule(s) to device '%s' (schedules: %s)", len(schemes), device.Name, scheduleNames[deviceID])
 	}
 
 	return success, fail, lastErr
 }
 
 // SyncSchedulesFromDevice fetches all plan schemes from a Hikvision device and imports them.
+// Each planScheme on the device becomes ONE local schedule with entries for each day_of_week.
 func SyncSchedulesFromDevice(deviceID int) (int, error) {
 	device, err := repositories.GetDeviceByID(deviceID)
 	if err != nil {
@@ -250,55 +234,139 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 		planSchemeName, _ := scheme["planSchemeName"].(string)
 		enabled, _ := scheme["enabled"].(bool)
 
-		var beginTime, endTime string
-		var scheduleType string = "daily"
-		var dayOfWeek int
+		// Determine schedule type
+		scheduleType := "daily"
 
-		if dailyInfo, ok := scheme["dailyscheduleInfo"].(map[string]interface{}); ok {
-			if schedList, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok && len(schedList) > 0 {
-				if entry, ok := schedList[0].(map[string]interface{}); ok {
-					beginTime, _ = entry["beginTime"].(string)
-					endTime, _ = entry["endTime"].(string)
-				}
-			}
+		// Parse all entries
+		var entries []models.ScheduleEntry
+
+		// Check for weekly schedule (weklyScheduleInfo or weeklyScheduleInfo)
+		weeklyInfo, hasWeekly := scheme["weklyScheduleInfo"].(map[string]interface{})
+		if !hasWeekly {
+			weeklyInfo, hasWeekly = scheme["weeklyScheduleInfo"].(map[string]interface{})
 		}
 
-		if weeklyInfo, ok := scheme["weklyScheduleInfo"].(map[string]interface{}); ok {
+		if hasWeekly {
 			scheduleType = "weekly"
-			if wList, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(wList) > 0 {
-				if wEntry, ok := wList[0].(map[string]interface{}); ok {
+
+			if wList, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok {
+				for _, wItem := range wList {
+					wEntry, ok := wItem.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					var dayOfWeek int
 					if d, ok := wEntry["dayOfWeek"].(float64); ok {
 						dayOfWeek = int(d)
 					}
-					if schedList, ok := wEntry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
-						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
-							beginTime, _ = schedEntry["beginTime"].(string)
-							endTime, _ = schedEntry["endTime"].(string)
+
+					if schedList, ok := wEntry["scheduleList"].([]interface{}); ok {
+						for _, schedItem := range schedList {
+							schedEntry, ok := schedItem.(map[string]interface{})
+							if !ok {
+								continue
+							}
+
+							beginTime, _ := schedEntry["beginTime"].(string)
+							endTime, _ := schedEntry["endTime"].(string)
+
+							// Clean timezone suffix
+							re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+							beginTime = re.ReplaceAllString(beginTime, "")
+							endTime = re.ReplaceAllString(endTime, "")
+
+							volume := 50
+							if op, ok := schedEntry["operation"].(map[string]interface{}); ok {
+								if v, ok := op["audioVolume"].(float64); ok {
+									volume = int(v)
+								}
+							}
+
+							dow := dayOfWeek
+							entries = append(entries, models.ScheduleEntry{
+								BeginTime: beginTime,
+								EndTime:   endTime,
+								Volume:    volume,
+								DayOfWeek: &dow,
+							})
 						}
 					}
 				}
 			}
-		} else if weeklyInfo, ok := scheme["weeklyScheduleInfo"].(map[string]interface{}); ok {
-			scheduleType = "weekly"
-			if wList, ok := weeklyInfo["weeklyScheduleList"].([]interface{}); ok && len(wList) > 0 {
-				if wEntry, ok := wList[0].(map[string]interface{}); ok {
-					if d, ok := wEntry["dayOfWeek"].(float64); ok {
-						dayOfWeek = int(d)
+		}
+
+		// Check for daily schedule
+		if dailyInfo, ok := scheme["dailyScheduleInfo"].(map[string]interface{}); !hasWeekly && ok {
+			if schedList, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok {
+				for _, schedItem := range schedList {
+					entry, ok := schedItem.(map[string]interface{})
+					if !ok {
+						continue
 					}
-					if schedList, ok := wEntry["scheduleList"].([]interface{}); ok && len(schedList) > 0 {
-						if schedEntry, ok := schedList[0].(map[string]interface{}); ok {
-							beginTime, _ = schedEntry["beginTime"].(string)
-							endTime, _ = schedEntry["endTime"].(string)
+
+					beginTime, _ := entry["beginTime"].(string)
+					endTime, _ := entry["endTime"].(string)
+
+					// Clean timezone suffix
+					re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+					beginTime = re.ReplaceAllString(beginTime, "")
+					endTime = re.ReplaceAllString(endTime, "")
+
+					volume := 50
+					if op, ok := entry["operation"].(map[string]interface{}); ok {
+						if v, ok := op["audioVolume"].(float64); ok {
+							volume = int(v)
 						}
 					}
+
+					entries = append(entries, models.ScheduleEntry{
+						BeginTime: beginTime,
+						EndTime:   endTime,
+						Volume:    volume,
+						DayOfWeek: nil, // daily = no day_of_week
+					})
 				}
 			}
 		}
 
-		// Clean timezone suffix
-		re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
-		beginTime = re.ReplaceAllString(beginTime, "")
-		endTime = re.ReplaceAllString(endTime, "")
+		// Also try dailyscheduleInfo if dailyScheduleInfo wasn't found
+		if dailyInfo, ok := scheme["dailyscheduleInfo"].(map[string]interface{}); !hasWeekly && ok {
+			if schedList, ok := dailyInfo["dailyScheduleList"].([]interface{}); ok {
+				for _, schedItem := range schedList {
+					entry, ok := schedItem.(map[string]interface{})
+					if !ok {
+						continue
+					}
+
+					beginTime, _ := entry["beginTime"].(string)
+					endTime, _ := entry["endTime"].(string)
+
+					re := regexp.MustCompile(`[+-]\d{2}:\d{2}$`)
+					beginTime = re.ReplaceAllString(beginTime, "")
+					endTime = re.ReplaceAllString(endTime, "")
+
+					volume := 50
+					if op, ok := entry["operation"].(map[string]interface{}); ok {
+						if v, ok := op["audioVolume"].(float64); ok {
+							volume = int(v)
+						}
+					}
+
+					entries = append(entries, models.ScheduleEntry{
+						BeginTime: beginTime,
+						EndTime:   endTime,
+						Volume:    volume,
+						DayOfWeek: nil,
+					})
+				}
+			}
+		}
+
+		if len(entries) == 0 {
+			log.Printf("[SYNC FROM DEVICE] Skipping planScheme '%s': no parseable entries", planSchemeID)
+			continue
+		}
 
 		name := planSchemeName
 		if name == "" {
@@ -308,31 +376,18 @@ func SyncSchedulesFromDevice(deviceID int) (int, error) {
 			name = fmt.Sprintf("Imported Schedule %d", synced+1)
 		}
 
-		// Create schedule with one entry and one device
+		// Create schedule with all entries and one device
 		schedule := &models.BroadcastSchedule{
 			Name:         name,
 			ScheduleType: scheduleType,
 			Enabled:      enabled,
-			Entries: []models.ScheduleEntry{
-				{
-					BeginTime: beginTime,
-					EndTime:   endTime,
-					Volume:    50,
-				},
-			},
+			Entries:      entries,
 			Devices: []models.ScheduleDevice{
 				{
 					DeviceID: deviceID,
 				},
 			},
 		}
-
-		if scheduleType == "weekly" && dayOfWeek > 0 {
-			schedule.DayOfWeek = &dayOfWeek
-		}
-
-		// Try to find matching audio by name/planSchemeID
-		// For imported schedules we leave AudioID as 0 (unlinked) — user can edit later
 
 		_, err := repositories.CreateSchedule(schedule)
 		if err != nil {
@@ -383,12 +438,28 @@ func formatTimeForHikvision(timeStr string, timezoneOffset string) string {
 	}
 }
 
-// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from a schedule + entry.
-func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.ScheduleEntry, timezoneOffset string, planSchemeID string, hikvisionAudioID int) map[string]interface{} {
-	beginTime := formatTimeForHikvision(entry.BeginTime, timezoneOffset)
-	endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
+// lookupAudioHikvisionID looks up the Hikvision audio ID for a given audio file ID.
+// Returns 0 if not found.
+func lookupAudioHikvisionID(audioID int) int {
+	if audioID <= 0 {
+		return 0
+	}
+	audioFile, err := repositories.GetAudioFileByID(audioID)
+	if err != nil || audioFile == nil {
+		return 0
+	}
+	if audioFile.HikvisionAudioID == nil || *audioFile.HikvisionAudioID == 0 {
+		return 0
+	}
+	return *audioFile.HikvisionAudioID
+}
 
+// buildHikvisionSchedulePayload builds the Hikvision ISAPI payload from a schedule.
+// All entries are grouped by day_of_week into a single planScheme.
+// This matches the structure used by Hikvision's own BroadcastPlan Vue component (core-2.js).
+func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, timezoneOffset string, planSchemeID string) map[string]interface{} {
 	now := time.Now()
+
 	// Use schedule's StartDate/EndDate when set, otherwise fall back to defaults
 	startDateStr := now.Format("2006-01-02") + "+" + timezoneOffset
 	if s.StartDate != nil && *s.StartDate != "" {
@@ -397,18 +468,6 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 	stopDateStr := now.AddDate(0, 0, 7).Format("2006-01-02") + "+" + timezoneOffset
 	if s.EndDate != nil && *s.EndDate != "" {
 		stopDateStr = *s.EndDate + "+" + timezoneOffset
-	}
-
-	scheduleEntry := map[string]interface{}{
-		"beginTime": beginTime,
-		"endTime":   endTime,
-		"playMode":  "order",
-		"operation": map[string]interface{}{
-			"audioSource":   "customAudio",
-			"customAudioID": []int{hikvisionAudioID},
-			"audioLevel":    5,
-			"audioVolume":   entry.Volume,
-		},
 	}
 
 	planScheme := map[string]interface{}{
@@ -420,39 +479,124 @@ func buildHikvisionSchedulePayload(s *models.BroadcastSchedule, entry *models.Sc
 
 	switch s.ScheduleType {
 	case "daily":
-		planScheme["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime": startDateStr,
-			"stopTime":  stopDateStr,
-			"dailyScheduleList": []map[string]interface{}{
-				scheduleEntry,
-			},
-		}
-	case "weekly":
-		dayOfWeek := 1
-		if s.DayOfWeek != nil {
-			dayOfWeek = *s.DayOfWeek
-		}
-		planScheme["weklyScheduleInfo"] = map[string]interface{}{
-			"startTime": startDateStr,
-			"stopTime":  stopDateStr,
-			"weeklyScheduleList": []map[string]interface{}{
-				{
-					"dayOfWeek":    dayOfWeek,
-					"scheduleList": []map[string]interface{}{scheduleEntry},
+		// Daily schedule: all entries go into a single day (no day_of_week)
+		var scheduleEntries []map[string]interface{}
+		for _, entry := range s.Entries {
+			// Skip entries with specific day_of_week for daily schedule
+			if entry.DayOfWeek != nil {
+				continue
+			}
+
+			beginTime := formatTimeForHikvision(entry.BeginTime, timezoneOffset)
+			endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
+			audioID := lookupAudioHikvisionID(entry.AudioID)
+
+			scheduleEntry := map[string]interface{}{
+				"beginTime": beginTime,
+				"endTime":   endTime,
+				"playMode":  "order",
+				"operation": map[string]interface{}{
+					"audioSource":   "customAudio",
+					"customAudioID": []int{audioID},
+					"audioLevel":    5,
+					"audioVolume":   entry.Volume,
 				},
-			},
+			}
+			scheduleEntries = append(scheduleEntries, scheduleEntry)
 		}
+
+		if len(scheduleEntries) > 0 {
+			planScheme["dailyScheduleInfo"] = map[string]interface{}{
+				"startTime":         startDateStr,
+				"stopTime":          stopDateStr,
+				"dailyScheduleList": scheduleEntries,
+			}
+		}
+
+	case "weekly":
+		// Weekly schedule: group entries by day_of_week (1=Monday ... 7=Sunday)
+		// Create a map of day_of_week -> entries
+		dayEntries := map[int][]map[string]interface{}{}
+
+		for _, entry := range s.Entries {
+			dayOfWeek := 1 // default Monday
+			if entry.DayOfWeek != nil {
+				dayOfWeek = *entry.DayOfWeek
+			}
+
+			beginTime := formatTimeForHikvision(entry.BeginTime, timezoneOffset)
+			endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
+			audioID := lookupAudioHikvisionID(entry.AudioID)
+
+			scheduleEntry := map[string]interface{}{
+				"beginTime": beginTime,
+				"endTime":   endTime,
+				"playMode":  "order",
+				"operation": map[string]interface{}{
+					"audioSource":   "customAudio",
+					"customAudioID": []int{audioID},
+					"audioLevel":    5,
+					"audioVolume":   entry.Volume,
+				},
+			}
+			dayEntries[dayOfWeek] = append(dayEntries[dayOfWeek], scheduleEntry)
+		}
+
+		if len(dayEntries) > 0 {
+			// Build weeklyScheduleList with entries grouped by day
+			var weeklyScheduleList []map[string]interface{}
+			for day := 1; day <= 7; day++ {
+				entries, ok := dayEntries[day]
+				if !ok || len(entries) == 0 {
+					continue
+				}
+				weeklyScheduleList = append(weeklyScheduleList, map[string]interface{}{
+					"dayOfWeek":    day,
+					"scheduleList": entries,
+				})
+			}
+
+			if len(weeklyScheduleList) > 0 {
+				planScheme["weklyScheduleInfo"] = map[string]interface{}{
+					"startTime":          startDateStr,
+					"stopTime":           stopDateStr,
+					"weeklyScheduleList": weeklyScheduleList,
+				}
+			}
+		}
+
 	case "specific_date":
 		dateStr := startDateStr
 		if s.SpecificDate != nil && *s.SpecificDate != "" {
 			dateStr = *s.SpecificDate
 		}
-		planScheme["dailyScheduleInfo"] = map[string]interface{}{
-			"startTime": dateStr,
-			"stopTime":  dateStr,
-			"dailyScheduleList": []map[string]interface{}{
-				scheduleEntry,
-			},
+
+		var scheduleEntries []map[string]interface{}
+		for _, entry := range s.Entries {
+			beginTime := formatTimeForHikvision(entry.BeginTime, timezoneOffset)
+			endTime := formatTimeForHikvision(entry.EndTime, timezoneOffset)
+			audioID := lookupAudioHikvisionID(entry.AudioID)
+
+			scheduleEntry := map[string]interface{}{
+				"beginTime": beginTime,
+				"endTime":   endTime,
+				"playMode":  "order",
+				"operation": map[string]interface{}{
+					"audioSource":   "customAudio",
+					"customAudioID": []int{audioID},
+					"audioLevel":    5,
+					"audioVolume":   entry.Volume,
+				},
+			}
+			scheduleEntries = append(scheduleEntries, scheduleEntry)
+		}
+
+		if len(scheduleEntries) > 0 {
+			planScheme["dailyScheduleInfo"] = map[string]interface{}{
+				"startTime":         dateStr,
+				"stopTime":          dateStr,
+				"dailyScheduleList": scheduleEntries,
+			}
 		}
 	}
 

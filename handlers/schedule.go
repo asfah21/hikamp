@@ -40,23 +40,17 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 			schedule.EndDate = &endDate
 		}
 
-		if schedule.ScheduleType == "weekly" {
-			if dayOfWeekStr := r.FormValue("day_of_week"); dayOfWeekStr != "" {
-				dayOfWeek, _ := strconv.Atoi(dayOfWeekStr)
-				schedule.DayOfWeek = &dayOfWeek
-			}
-		}
-
 		if schedule.ScheduleType == "specific_date" {
 			date := r.FormValue("specific_date")
 			schedule.SpecificDate = &date
 		}
 
-		// Parse entries (multi: audio_id[], begin_time[], end_time[], volume[])
+		// Parse entries (multi: audio_id[], begin_time[], end_time[], volume[], day_of_week[])
 		audioIDs := r.Form["audio_id"]
 		beginTimes := r.Form["begin_time"]
 		endTimes := r.Form["end_time"]
 		volumes := r.Form["volume"]
+		dayOfWeeks := r.Form["day_of_week"]
 
 		entryCount := len(audioIDs)
 		if len(beginTimes) > entryCount {
@@ -68,6 +62,9 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 		if len(volumes) > entryCount {
 			entryCount = len(volumes)
 		}
+		if len(dayOfWeeks) > entryCount {
+			entryCount = len(dayOfWeeks)
+		}
 
 		for i := 0; i < entryCount; i++ {
 			audioID, _ := strconv.Atoi(getFormArrayValue(audioIDs, i))
@@ -75,12 +72,20 @@ func AdminSchedulesCreate(w http.ResponseWriter, r *http.Request) {
 			if volume == 0 {
 				volume = 50
 			}
-			schedule.Entries = append(schedule.Entries, models.ScheduleEntry{
+			entry := models.ScheduleEntry{
 				AudioID:   audioID,
 				BeginTime: getFormArrayValue(beginTimes, i),
 				EndTime:   getFormArrayValue(endTimes, i),
 				Volume:    volume,
-			})
+			}
+			// Parse day_of_week per entry (only for weekly schedules)
+			if schedule.ScheduleType == "weekly" {
+				if dowStr := getFormArrayValue(dayOfWeeks, i); dowStr != "" {
+					dow, _ := strconv.Atoi(dowStr)
+					entry.DayOfWeek = &dow
+				}
+			}
+			schedule.Entries = append(schedule.Entries, entry)
 		}
 
 		// Parse devices (multi: device_id[])
@@ -157,23 +162,17 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 			schedule.EndDate = &endDate
 		}
 
-		if schedule.ScheduleType == "weekly" {
-			if dayOfWeekStr := r.FormValue("day_of_week"); dayOfWeekStr != "" {
-				dayOfWeek, _ := strconv.Atoi(dayOfWeekStr)
-				schedule.DayOfWeek = &dayOfWeek
-			}
-		}
-
 		if schedule.ScheduleType == "specific_date" {
 			date := r.FormValue("specific_date")
 			schedule.SpecificDate = &date
 		}
 
-		// Parse entries
+		// Parse entries (multi: audio_id[], begin_time[], end_time[], volume[], day_of_week[])
 		audioIDs := r.Form["audio_id"]
 		beginTimes := r.Form["begin_time"]
 		endTimes := r.Form["end_time"]
 		volumes := r.Form["volume"]
+		dayOfWeeks := r.Form["day_of_week"]
 
 		entryCount := len(audioIDs)
 		if len(beginTimes) > entryCount {
@@ -185,6 +184,9 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 		if len(volumes) > entryCount {
 			entryCount = len(volumes)
 		}
+		if len(dayOfWeeks) > entryCount {
+			entryCount = len(dayOfWeeks)
+		}
 
 		for i := 0; i < entryCount; i++ {
 			audioID, _ := strconv.Atoi(getFormArrayValue(audioIDs, i))
@@ -192,12 +194,20 @@ func AdminSchedulesEdit(w http.ResponseWriter, r *http.Request) {
 			if volume == 0 {
 				volume = 50
 			}
-			schedule.Entries = append(schedule.Entries, models.ScheduleEntry{
+			entry := models.ScheduleEntry{
 				AudioID:   audioID,
 				BeginTime: getFormArrayValue(beginTimes, i),
 				EndTime:   getFormArrayValue(endTimes, i),
 				Volume:    volume,
-			})
+			}
+			// Parse day_of_week per entry (only for weekly schedules)
+			if schedule.ScheduleType == "weekly" {
+				if dowStr := getFormArrayValue(dayOfWeeks, i); dowStr != "" {
+					dow, _ := strconv.Atoi(dowStr)
+					entry.DayOfWeek = &dow
+				}
+			}
+			schedule.Entries = append(schedule.Entries, entry)
 		}
 
 		// Parse devices
