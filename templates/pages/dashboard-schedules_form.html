@@ -187,21 +187,6 @@
                     </select>
                 </div>
 
-                <template x-if="type === 'weekly'">
-                <div class="form-group">
-                    <label class="form-label">Day of Week</label>
-                    <select name="day_of_week" class="input-field">
-                        <option value="1" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 1)}}selected{{end}}>Monday</option>
-                        <option value="2" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 2)}}selected{{end}}>Tuesday</option>
-                        <option value="3" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 3)}}selected{{end}}>Wednesday</option>
-                        <option value="4" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 4)}}selected{{end}}>Thursday</option>
-                        <option value="5" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 5)}}selected{{end}}>Friday</option>
-                        <option value="6" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 6)}}selected{{end}}>Saturday</option>
-                        <option value="7" {{if and .Data.Schedule .Data.Schedule.DayOfWeek (eq .Data.Schedule.DayOfWeek 7)}}selected{{end}}>Sunday</option>
-                    </select>
-                </div>
-                </template>
-
                 <template x-if="type === 'specific_date'">
                 <div class="form-group">
                     <label class="form-label">Specific Date</label>
